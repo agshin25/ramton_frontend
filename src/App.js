@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import React, { useState, createContext, useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
@@ -15,10 +15,10 @@ import {
   BarChart3,
   Settings,
   Tag,
-  MapPin
+  MapPin,
+  Bell,
+  CheckCircle
 } from 'lucide-react';
-
-// Import components
 import Dashboard from './components/Dashboard';
 import Customers from './components/Customers';
 import Orders from './components/Orders';
@@ -32,6 +32,103 @@ import Permissions from './components/Permissions';
 import SettingsComponent from './components/Settings';
 import BotMonitoring from './components/BotMonitoring';
 import OrderStatistics from './components/OrderStatistics';
+import Notifications from './components/Notifications';
+import Reports from './components/Reports';
+
+// Notification Context
+const NotificationContext = createContext();
+
+export const useNotifications = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error('useNotifications must be used within a NotificationProvider');
+  }
+  return context;
+};
+
+// Notification Provider Component
+const NotificationProvider = ({ children }) => {
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      type: 'order',
+      title: 'Yeni Sifariş',
+      message: 'iPhone 15 Pro x2 ədəd sifarişi gəldi',
+      time: '2 dəqiqə əvvəl',
+      read: false,
+      priority: 'high'
+    },
+    {
+      id: 2,
+      type: 'system',
+      title: 'Sistem Yeniləməsi',
+      message: 'Ramton CRM sistemi yeniləndi',
+      time: '15 dəqiqə əvvəl',
+      read: false,
+      priority: 'medium'
+    },
+    {
+      id: 3,
+      type: 'delivery',
+      title: 'Çatdırılma Tamamlandı',
+      message: 'MacBook Air sifarişi çatdırıldı',
+      time: '1 saat əvvəl',
+      read: true,
+      priority: 'low'
+    },
+    {
+      id: 4,
+      type: 'order',
+      title: 'Sifariş Ləğv Edildi',
+      message: 'AirPods Pro sifarişi ləğv edildi',
+      time: '2 saat əvvəl',
+      read: true,
+      priority: 'medium'
+    }
+  ]);
+
+  const markAsRead = (id) => {
+    setNotifications(prev => 
+      prev.map(notification => 
+        notification.id === id 
+          ? { ...notification, read: true }
+          : notification
+      )
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notification => ({ ...notification, read: true }))
+    );
+  };
+
+  const addNotification = (notification) => {
+    const newNotification = {
+      id: Date.now(),
+      time: 'İndi',
+      read: false,
+      ...notification
+    };
+    setNotifications(prev => [newNotification, ...prev]);
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <NotificationContext.Provider value={{
+      notifications,
+      unreadCount,
+      markAsRead,
+      markAllAsRead,
+      addNotification
+    }}>
+      {children}
+    </NotificationContext.Provider>
+  );
+};
+
+
 
 // Sidebar Component
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -123,6 +220,50 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
 // Header Component
 const Header = ({ toggleSidebar }) => {
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const navigate = useNavigate();
+
+  // Close notifications when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showNotifications && !event.target.closest('.notification-dropdown')) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'order':
+        return <Package className="w-4 h-4" />;
+      case 'system':
+        return <Settings className="w-4 h-4" />;
+      case 'delivery':
+        return <CheckCircle className="w-4 h-4" />;
+      default:
+        return <Bell className="w-4 h-4" />;
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'high':
+        return 'text-red-600 bg-red-50 border-red-200';
+      case 'medium':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'low':
+        return 'text-green-600 bg-green-50 border-green-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
   return (
     <header className="bg-white shadow-lg border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -137,6 +278,95 @@ const Header = ({ toggleSidebar }) => {
         </div>
         
         <div className="flex items-center space-x-4">
+          {/* Notification Bell */}
+          <div className="relative notification-dropdown">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notification Dropdown */}
+            {showNotifications && (
+              <div className="notification-dropdown absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-800">Bildirişlər</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Hamısını oxundu kimi qeyd et
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500">
+                      Bildiriş yoxdur
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          onClick={() => markAsRead(notification.id)}
+                          className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                            !notification.read ? 'bg-blue-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <div className={`p-2 rounded-lg ${getPriorityColor(notification.priority)}`}>
+                              {getNotificationIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className={`text-sm font-medium ${
+                                  !notification.read ? 'text-gray-900' : 'text-gray-700'
+                                }`}>
+                                  {notification.title}
+                                </p>
+                                <span className="text-xs text-gray-500">{notification.time}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                              {!notification.read && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {notifications.length > 0 && (
+                  <div className="p-4 border-t border-gray-100">
+                    <button 
+                      onClick={() => {
+                        navigate('/bildirisler');
+                        setShowNotifications(false);
+                      }}
+                      className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Bütün bildirişləri gör
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* User Avatar */}
           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
             <span className="text-white text-sm font-medium">A</span>
           </div>
@@ -158,32 +388,35 @@ function App() {
 
   return (
     <Router>
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        
-        <div className="flex-1 flex flex-col overflow-hidden relative">
-          <Header toggleSidebar={toggleSidebar} />
+      <NotificationProvider>
+        <div className="flex h-screen bg-gray-50">
+          <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
           
-          <main className="flex-1 overflow-y-auto">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/sifarisler" element={<Orders />} />
-              <Route path="/sifaris-statistikasi" element={<OrderStatistics />} />
-              <Route path="/mehsullar" element={<Products />} />
-              <Route path="/kateqoriyalar" element={<Categories />} />
-              <Route path="/kuryerler" element={<Couriers />} />
-              <Route path="/zonalar" element={<Zones />} />
-              <Route path="/musteriler" element={<Customers />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/rollar" element={<Roles />} />
-              <Route path="/icazeler" element={<Permissions />} />
-              <Route path="/bot-monitoring" element={<BotMonitoring />} />
-              <Route path="/hesabatlar" element={<div className="p-6 text-center text-gray-600">Hesabatlar Səhifəsi</div>} />
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+            <Header toggleSidebar={toggleSidebar} />
+            
+            <main className="flex-1 overflow-y-auto">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/sifarisler" element={<Orders />} />
+                <Route path="/sifaris-statistikasi" element={<OrderStatistics />} />
+                <Route path="/mehsullar" element={<Products />} />
+                <Route path="/kateqoriyalar" element={<Categories />} />
+                <Route path="/kuryerler" element={<Couriers />} />
+                <Route path="/zonalar" element={<Zones />} />
+                <Route path="/musteriler" element={<Customers />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/rollar" element={<Roles />} />
+                <Route path="/icazeler" element={<Permissions />} />
+                              <Route path="/bot-monitoring" element={<BotMonitoring />} />
+              <Route path="/hesabatlar" element={<Reports />} />
               <Route path="/tenzimlemeler" element={<SettingsComponent />} />
-            </Routes>
-          </main>
+              <Route path="/bildirisler" element={<Notifications />} />
+              </Routes>
+            </main>
+          </div>
         </div>
-      </div>
+      </NotificationProvider>
     </Router>
   );
 }

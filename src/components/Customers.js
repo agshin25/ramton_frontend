@@ -15,8 +15,10 @@ import {
   ChevronRight, 
   ChevronsLeft, 
   ChevronsRight,
-  ShoppingBag
+  ShoppingBag,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const Customers = () => {
   // State management
@@ -359,6 +361,58 @@ const Customers = () => {
     setShowViewModal(true);
   };
 
+  // Excel Export Function
+  const exportToExcel = () => {
+    // Prepare data for export
+    const exportData = customers.map(customer => ({
+      'ID': customer.id,
+      'Ad': customer.name,
+      'Email': customer.email,
+      'Telefon': customer.phone,
+      'Ünvan': customer.address,
+      'Şəhər': customer.city,
+      'Status': customer.status,
+      'Qoşulma Tarixi': customer.joinDate,
+      'Ümumi Sifariş': customer.totalOrders,
+      'Ümumi Xərc': `${customer.totalSpent.toFixed(2)}₼`,
+      'Son Sifariş Tarixi': customer.lastOrderDate,
+      'Təyin Edilmiş Zonalar': getZoneNames(customer.assignedZones),
+      'Qeydlər': customer.notes
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+    // Set column widths
+    const columnWidths = [
+      { wch: 5 },  // ID
+      { wch: 20 }, // Ad
+      { wch: 25 }, // Email
+      { wch: 15 }, // Telefon
+      { wch: 40 }, // Ünvan
+      { wch: 12 }, // Şəhər
+      { wch: 10 }, // Status
+      { wch: 12 }, // Qoşulma Tarixi
+      { wch: 12 }, // Ümumi Sifariş
+      { wch: 15 }, // Ümumi Xərc
+      { wch: 15 }, // Son Sifariş Tarixi
+      { wch: 25 }, // Təyin Edilmiş Zonalar
+      { wch: 30 }  // Qeydlər
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Müştərilər');
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `Ramton_CRM_Müştərilər_${date}.xlsx`;
+
+    // Save file
+    XLSX.writeFile(workbook, filename);
+  };
+
   // Statistics
   const totalCustomers = customers.length;
   const activeCustomers = customers.filter(c => c.status === 'Aktiv').length;
@@ -437,13 +491,22 @@ const Customers = () => {
               </select>
             </div>
             
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Yeni Müştəri
-            </button>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+              <button
+                onClick={exportToExcel}
+                className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Excel Export
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Yeni Müştəri
+              </button>
+            </div>
           </div>
         </div>
       </div>
