@@ -1,5 +1,7 @@
 import React, { useState, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import { 
   LayoutDashboard, 
   Users, 
@@ -34,6 +36,7 @@ import BotMonitoring from './components/BotMonitoring';
 import OrderStatistics from './components/OrderStatistics';
 import Notifications from './components/Notifications';
 import Reports from './components/Reports';
+import Login from './components/Login';
 
 // Notification Context
 const NotificationContext = createContext();
@@ -222,7 +225,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 const Header = ({ toggleSidebar }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   // Close notifications when clicking outside
   React.useEffect(() => {
@@ -367,8 +372,46 @@ const Header = ({ toggleSidebar }) => {
           </div>
 
           {/* User Avatar */}
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-            <span className="text-white text-sm font-medium">A</span>
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <span className="text-white text-sm font-medium">{user?.avatar || 'A'}</span>
+            </button>
+
+            {/* User Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">{user?.avatar || 'A'}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{user?.name || 'Admin User'}</p>
+                      <p className="text-xs text-gray-500">{user?.email || 'admin@ramton.az'}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                      navigate('/login');
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Çıxış Et
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -388,35 +431,47 @@ function App() {
 
   return (
     <Router>
-      <NotificationProvider>
-        <div className="flex h-screen bg-gray-50">
-          <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-          
-          <div className="flex-1 flex flex-col overflow-hidden relative">
-            <Header toggleSidebar={toggleSidebar} />
+      <AuthProvider>
+        <NotificationProvider>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
             
-            <main className="flex-1 overflow-y-auto">
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/sifarisler" element={<Orders />} />
-                <Route path="/sifaris-statistikasi" element={<OrderStatistics />} />
-                <Route path="/mehsullar" element={<Products />} />
-                <Route path="/kateqoriyalar" element={<Categories />} />
-                <Route path="/kuryerler" element={<Couriers />} />
-                <Route path="/zonalar" element={<Zones />} />
-                <Route path="/musteriler" element={<Customers />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/rollar" element={<Roles />} />
-                <Route path="/icazeler" element={<Permissions />} />
-                              <Route path="/bot-monitoring" element={<BotMonitoring />} />
-              <Route path="/hesabatlar" element={<Reports />} />
-              <Route path="/tenzimlemeler" element={<SettingsComponent />} />
-              <Route path="/bildirisler" element={<Notifications />} />
-              </Routes>
-            </main>
-          </div>
-        </div>
-      </NotificationProvider>
+            {/* Protected Routes */}
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <div className="flex h-screen bg-gray-50">
+                  <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+                  
+                  <div className="flex-1 flex flex-col overflow-hidden relative">
+                    <Header toggleSidebar={toggleSidebar} />
+                    
+                    <main className="flex-1 overflow-y-auto">
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/sifarisler" element={<Orders />} />
+                        <Route path="/sifaris-statistikasi" element={<OrderStatistics />} />
+                        <Route path="/mehsullar" element={<Products />} />
+                        <Route path="/kateqoriyalar" element={<Categories />} />
+                        <Route path="/kuryerler" element={<Couriers />} />
+                        <Route path="/zonalar" element={<Zones />} />
+                        <Route path="/musteriler" element={<Customers />} />
+                        <Route path="/admin" element={<Admin />} />
+                        <Route path="/rollar" element={<Roles />} />
+                        <Route path="/icazeler" element={<Permissions />} />
+                        <Route path="/bot-monitoring" element={<BotMonitoring />} />
+                        <Route path="/hesabatlar" element={<Reports />} />
+                        <Route path="/tenzimlemeler" element={<SettingsComponent />} />
+                        <Route path="/bildirisler" element={<Notifications />} />
+                      </Routes>
+                    </main>
+                  </div>
+                </div>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </NotificationProvider>
+      </AuthProvider>
     </Router>
   );
 }
