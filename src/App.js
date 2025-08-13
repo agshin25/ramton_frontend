@@ -2,7 +2,7 @@ import React, { useState, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import { 
+import {
   LayoutDashboard, 
   Users, 
   ShoppingCart, 
@@ -19,7 +19,9 @@ import {
   Tag,
   MapPin,
   Bell,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle,
+  Receipt
 } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Customers from './components/Customers';
@@ -37,6 +39,10 @@ import OrderStatistics from './components/OrderStatistics';
 import Notifications from './components/Notifications';
 import Reports from './components/Reports';
 import Login from './components/Login';
+import EmployeeDashboard from './components/EmployeeDashboard';
+import ProblemTracking from './components/ProblemTracking';
+import CourierSettlement from './components/CrierSettlement';
+import DailyTasks from './components/DailyTasks';
 
 // Notification Context
 const NotificationContext = createContext();
@@ -139,13 +145,18 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    { name: 'Əməkdaş Dashboard', icon: Users, path: '/emekdas-dashboard' },
+    { name: 'Problem İzləmə', icon: AlertTriangle, path: '/problem-izleme' },
+    { name: 'Gündəlik Tapşırıqlar', icon: CheckCircle, path: '/gunluk-tapshiriqlar' },
     { name: 'Sifarişlər', icon: ShoppingCart, path: '/sifarisler' },
     { name: 'Sifariş Statistikası', icon: BarChart3, path: '/sifaris-statistikasi' },
     { name: 'Məhsullar', icon: Package, path: '/mehsullar' },
     { name: 'Kateqoriyalar', icon: Tag, path: '/kateqoriyalar' },
     { name: 'Kuryerlər', icon: Truck, path: '/kuryerler' },
+    { name: 'Kuryer Hesablaşması', icon: Receipt, path: '/kuryer-hesablasma' },
     { name: 'Zonalar', icon: MapPin, path: '/zonalar' },
     { name: 'Müştərilər', icon: Users, path: '/musteriler' },
+    { name: 'Bildirişlər', icon: Bell, path: '/bildirisler' },
     { name: 'Admin', icon: Shield, path: '/admin' },
     { name: 'Rollar', icon: UserCheck, path: '/rollar' },
     { name: 'İcazələr', icon: Key, path: '/icazeler' },
@@ -170,50 +181,136 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-auto
         w-64 border-r border-slate-700 flex flex-col
       `}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
-          <h1 className="text-xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Ramton CRM
-          </h1>
+        <div className="flex items-center justify-between p-6 border-b border-slate-700 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-2xl">🚀</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">Ramton CRM</h1>
+              <p className="text-blue-100 text-sm">İdarəetmə Paneli</p>
+            </div>
+          </div>
           <button 
             onClick={toggleSidebar}
-            className="lg:hidden p-2 rounded-lg hover:bg-slate-700 text-slate-300"
+            className="lg:hidden p-2 rounded-lg hover:bg-white hover:bg-opacity-20 text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         
         <nav className="flex-1 overflow-y-auto p-4">
-          <ul className="space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <li key={item.name}>
-                  <Link
-                    to={item.path}
-                    className={`
-                      flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300
-                      ${isActive 
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
-                        : 'text-slate-300 hover:bg-slate-700 hover:text-white hover:transform hover:scale-105'
-                      }
-                    `}
-                    onClick={() => window.innerWidth < 1024 && toggleSidebar()}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.name}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {/* Main Sections */}
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Əsas Bölmələr</h3>
+            <ul className="space-y-1">
+              {menuItems.slice(0, 4).map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <li key={item.name}>
+                    <Link
+                      to={item.path}
+                      className={`
+                        flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200
+                        ${isActive 
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
+                          : 'text-slate-300 hover:bg-slate-700 hover:text-white hover:transform hover:scale-105'
+                        }
+                      `}
+                      onClick={() => window.innerWidth < 1024 && toggleSidebar()}
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        isActive ? 'bg-white bg-opacity-20' : 'bg-slate-700'
+                      }`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <span className="font-medium">{item.name}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          
+          {/* Employee Operations */}
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Əməkdaş Əməliyyatları</h3>
+            <ul className="space-y-1">
+              {menuItems.slice(4, 8).map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <li key={item.name}>
+                    <Link
+                      to={item.path}
+                      className={`
+                        flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200
+                        ${isActive 
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
+                          : 'text-slate-300 hover:bg-slate-700 hover:text-white hover:transform hover:scale-105'
+                        }
+                      `}
+                      onClick={() => window.innerWidth < 1024 && toggleSidebar()}
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        isActive ? 'bg-white bg-opacity-20' : 'bg-slate-700'
+                      }`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <span className="font-medium">{item.name}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          
+          {/* System */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Sistem</h3>
+            <ul className="space-y-1">
+              {menuItems.slice(8).map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <li key={item.name}>
+                    <Link
+                      to={item.path}
+                      className={`
+                        flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200
+                        ${isActive 
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
+                          : 'text-slate-300 hover:bg-slate-700 hover:text-white hover:transform hover:scale-105'
+                        }
+                      `}
+                      onClick={() => window.innerWidth < 1024 && toggleSidebar()}
+                    >
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        isActive ? 'bg-white bg-opacity-20' : 'bg-slate-700'
+                      }`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <span className="font-medium">{item.name}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </nav>
         
         {/* Bottom spacing */}
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-slate-700 bg-slate-800">
+          <div className="flex items-center justify-center space-x-2 mb-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-xs text-green-400 font-medium">Sistem Aktiv</span>
+          </div>
           <div className="text-xs text-slate-400 text-center">
-            Sistem vəziyyəti: Aktiv
+            Ramton CRM v2.0
           </div>
         </div>
       </div>
@@ -270,19 +367,24 @@ const Header = ({ toggleSidebar }) => {
   };
 
   return (
-    <header className="bg-white shadow-lg border-b border-gray-200 px-6 py-4">
+    <header className="bg-white shadow-lg border-b border-gray-200 px-4 lg:px-6 py-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 lg:space-x-4">
           <button 
             onClick={toggleSidebar}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-800">Ramton CRM Sistemi</h2>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center lg:hidden">
+              <span className="text-white text-sm lg:text-base font-bold">R</span>
+            </div>
+            <h2 className="text-base lg:text-lg font-semibold text-gray-800">Ramton CRM Sistemi</h2>
+          </div>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Notification Bell */}
           <div className="relative notification-dropdown">
             <button
@@ -421,6 +523,65 @@ const Header = ({ toggleSidebar }) => {
 
 
 
+// Mobile Footer Menu Component
+const MobileFooterMenu = () => {
+  const location = useLocation();
+  
+  return (
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40">
+      <div className="flex items-center justify-around py-3">
+        <Link
+          to="/"
+          className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-all duration-200 ${
+            location.pathname === '/' 
+              ? 'text-blue-600 bg-blue-50' 
+              : 'text-gray-600 hover:text-blue-600'
+          }`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-xs font-medium">Dashboard</span>
+        </Link>
+        
+        <Link
+          to="/sifarisler"
+          className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-all duration-200 ${
+            location.pathname === '/sifarisler' 
+              ? 'text-blue-600 bg-blue-50' 
+              : 'text-gray-600 hover:text-blue-600'
+          }`}
+        >
+          <ShoppingCart className="w-5 h-5" />
+          <span className="text-xs font-medium">Sifarişlər</span>
+        </Link>
+        
+        <Link
+          to="/musteriler"
+          className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-all duration-200 ${
+            location.pathname === '/musteriler' 
+              ? 'text-blue-600 bg-blue-50' 
+              : 'text-gray-600 hover:text-blue-600'
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          <span className="text-xs font-medium">Müştərilər</span>
+        </Link>
+        
+        <Link
+          to="/gunluk-tapshiriqlar"
+          className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-all duration-200 ${
+            location.pathname === '/gunluk-tapshiriqlar' 
+              ? 'text-blue-600 bg-blue-50' 
+              : 'text-gray-600 hover:text-blue-600'
+          }`}
+        >
+          <CheckCircle className="w-5 h-5" />
+          <span className="text-xs font-medium">Tapşırıqlar</span>
+        </Link>
+      </div>
+    </div>
+  );
+};
+
 // Main App Component
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -446,14 +607,18 @@ function App() {
                   <div className="flex-1 flex flex-col overflow-hidden relative">
                     <Header toggleSidebar={toggleSidebar} />
                     
-                    <main className="flex-1 overflow-y-auto">
+                    <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
                       <Routes>
                         <Route path="/" element={<Dashboard />} />
-                        <Route path="/sifarisler" element={<Orders />} />
+                        <Route path="/emekdas-dashboard" element={<EmployeeDashboard />} />
+                                      <Route path="/problem-izleme" element={<ProblemTracking />} />
+              <Route path="/gunluk-tapshiriqlar" element={<DailyTasks />} />
+              <Route path="/sifarisler" element={<Orders />} />
                         <Route path="/sifaris-statistikasi" element={<OrderStatistics />} />
                         <Route path="/mehsullar" element={<Products />} />
                         <Route path="/kateqoriyalar" element={<Categories />} />
                         <Route path="/kuryerler" element={<Couriers />} />
+                        <Route path="/kuryer-hesablasma" element={<CourierSettlement />} />
                         <Route path="/zonalar" element={<Zones />} />
                         <Route path="/musteriler" element={<Customers />} />
                         <Route path="/admin" element={<Admin />} />
@@ -465,6 +630,9 @@ function App() {
                         <Route path="/bildirisler" element={<Notifications />} />
                       </Routes>
                     </main>
+
+                    {/* Mobile Footer Menu */}
+                    <MobileFooterMenu />
                   </div>
                 </div>
               </ProtectedRoute>

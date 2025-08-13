@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -22,11 +22,14 @@ import {
   ChevronsRight,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Crown,
+  Star
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { employees } from './Admin';
 import { products } from './Products';
+import { useNavigate } from 'react-router-dom';
 
 // Sample customers data for order creation
 const customers = [
@@ -78,11 +81,14 @@ const customers = [
 ];
 
 const Orders = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [productFilter, setProductFilter] = useState('all');
   const [zoneFilter, setZoneFilter] = useState('all');
+  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState('all');
+  const [vipFilter, setVipFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(6);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -93,7 +99,18 @@ const Orders = () => {
   const [showExportNotification, setShowExportNotification] = useState(false);
   const [showCourierAssignment, setShowCourierAssignment] = useState(false);
   const [assignedCourier, setAssignedCourier] = useState('');
-  const [showStatistics, setShowStatistics] = useState(true);
+  const [showStatistics, setShowStatistics] = useState(window.innerWidth >= 768);
+  // Handle window resize to update statistics visibility
+  useEffect(() => {
+    const handleResize = () => {
+      const isDesktop = window.innerWidth >= 768;
+      setShowStatistics(isDesktop);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [newOrder, setNewOrder] = useState({
     customer: '',
     employee: '',
@@ -105,7 +122,8 @@ const Orders = () => {
     discount: 0,
     status: 'Yeni',
     courier: 'Rəşad Əhmədov',
-    zone: 'Bakı Mərkəz'
+    zone: 'Bakı Mərkəz',
+    deliveryMethod: 'Kuryer'
   });
 
   const orders = [
@@ -120,6 +138,7 @@ const Orders = () => {
       date: '2024-01-15',
       courier: 'Rəşad Əhmədov',
       zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Kuryer',
       whatsappMessage: 'iPhone 15 Pro x2 ədəd - 150₼'
     },
     {
@@ -133,6 +152,7 @@ const Orders = () => {
       date: '2024-01-16',
       courier: 'Elşən Məmmədov',
       zone: 'Sumqayıt',
+      deliveryMethod: 'Azerpoct Filialı',
       whatsappMessage: 'MacBook Air x1 ədəd - 75.50₼'
     },
     {
@@ -146,6 +166,7 @@ const Orders = () => {
       date: '2024-01-17',
       courier: 'Orxan Əliyev',
       zone: 'Gəncə',
+      deliveryMethod: 'Kuryer',
       whatsappMessage: 'Apple Watch x3 ədəd - 200₼'
     },
     {
@@ -159,6 +180,7 @@ const Orders = () => {
       date: '2024-01-18',
       courier: 'Rəşad Əhmədov',
       zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Azerpoct Filialı',
       whatsappMessage: 'iPad Pro x1 ədəd - 120₼'
     },
     {
@@ -172,6 +194,7 @@ const Orders = () => {
       date: '2024-01-19',
       courier: 'Təyin edilməyib',
       zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Kuryer',
       whatsappMessage: 'AirPods Pro x5 ədəd - 85₼ (LƏĞV)'
     },
     {
@@ -185,7 +208,36 @@ const Orders = () => {
       date: '2024-01-20',
       courier: 'Elşən Məmmədov',
       zone: 'Sumqayıt',
+      deliveryMethod: 'Kuryer',
       whatsappMessage: 'Samsung Galaxy S24 x2 ədəd - 180₼'
+    },
+    {
+      id: '#12357',
+      customer: 'Əli Məmmədov',
+      employee: 'Əli Məmmədov',
+      product: 'iPhone 15',
+      quantity: 1,
+      price: 120.00,
+      status: 'Tamamlandı',
+      date: '2024-01-27',
+      courier: 'Rəşad Əhmədov',
+      zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Kuryer',
+      whatsappMessage: 'iPhone 15 x1 ədəd - 120₼'
+    },
+    {
+      id: '#12358',
+      customer: 'Əli Məmmədov',
+      employee: 'Aysu Hüseynova',
+      product: 'MacBook Pro',
+      quantity: 1,
+      price: 250.00,
+      status: 'Gözləmədə',
+      date: '2024-01-28',
+      courier: 'Elşən Məmmədov',
+      zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Azerpoct Filialı',
+      whatsappMessage: 'MacBook Pro x1 ədəd - 250₼'
     },
     {
       id: '#12351',
@@ -198,6 +250,7 @@ const Orders = () => {
       date: '2024-01-21',
       courier: 'Rəşad Əhmədov',
       zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Azerpoct Filialı',
       whatsappMessage: 'Dell XPS 13 x1 ədəd - 95₼'
     },
     {
@@ -211,6 +264,7 @@ const Orders = () => {
       date: '2024-01-22',
       courier: 'Orxan Əliyev',
       zone: 'Gəncə',
+      deliveryMethod: 'Kuryer',
       whatsappMessage: 'Sony WH-1000XM5 x3 ədəd - 110₼'
     },
     {
@@ -223,6 +277,7 @@ const Orders = () => {
       date: '2024-01-23',
       courier: 'Rəşad Əhmədov',
       zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Azerpoct Filialı',
       whatsappMessage: 'Microsoft Surface Pro x1 ədəd - 160₼'
     },
     {
@@ -235,6 +290,7 @@ const Orders = () => {
       date: '2024-01-24',
       courier: 'Elşən Məmmədov',
       zone: 'Sumqayıt',
+      deliveryMethod: 'Kuryer',
       whatsappMessage: 'Google Pixel 8 x2 ədəd - 140₼'
     },
     {
@@ -247,6 +303,7 @@ const Orders = () => {
       date: '2024-01-25',
       courier: 'Orxan Əliyev',
       zone: 'Gəncə',
+      deliveryMethod: 'Azerpoct Filialı',
       whatsappMessage: 'Lenovo ThinkPad X1 x1 ədəd - 125₼'
     },
     {
@@ -259,7 +316,36 @@ const Orders = () => {
       date: '2024-01-26',
       courier: 'Rəşad Əhmədov',
       zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Kuryer',
       whatsappMessage: 'Bose QuietComfort 45 x4 ədəd - 90₼'
+    },
+    {
+      id: '#12359',
+      customer: 'Aysu Hüseynova',
+      employee: 'Rəşad Hüseynov',
+      product: 'Sony WH-1000XM4',
+      quantity: 2,
+      price: 95.00,
+      status: 'Tamamlandı',
+      date: '2024-01-29',
+      courier: 'Orxan Əliyev',
+      zone: 'Sumqayıt',
+      deliveryMethod: 'Kuryer',
+      whatsappMessage: 'Sony WH-1000XM4 x2 ədəd - 95₼'
+    },
+    {
+      id: '#12360',
+      customer: 'Aysu Hüseynova',
+      employee: 'Leyla Məmmədova',
+      product: 'iPad Air',
+      quantity: 1,
+      price: 110.00,
+      status: 'Yeni',
+      date: '2024-01-30',
+      courier: 'Rəşad Əhmədov',
+      zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Azerpoct Filialı',
+      whatsappMessage: 'iPad Air x1 ədəd - 110₼'
     }
   ];
 
@@ -293,8 +379,17 @@ const Orders = () => {
     const matchesEmployee = employeeFilter === 'all' || order.employee === employeeFilter;
     const matchesProduct = productFilter === 'all' || order.product === productFilter;
     const matchesZone = zoneFilter === 'all' || order.zone === zoneFilter;
+    const matchesDeliveryMethod = deliveryMethodFilter === 'all' || order.deliveryMethod === deliveryMethodFilter;
     
-    return matchesSearch && matchesStatus && matchesEmployee && matchesProduct && matchesZone;
+    // VIP filtering logic
+    let matchesVip = true;
+    if (vipFilter === 'vip') {
+      matchesVip = order.customer && getVIPInfo(order.customer);
+    } else if (vipFilter === 'non-vip') {
+      matchesVip = !order.customer || !getVIPInfo(order.customer);
+    }
+    
+    return matchesSearch && matchesStatus && matchesEmployee && matchesProduct && matchesZone && matchesDeliveryMethod && matchesVip;
   });
 
   // Səhifələmə hesablamaları
@@ -384,6 +479,7 @@ const Orders = () => {
       date: today,
       courier: newOrder.courier,
       zone: newOrder.zone,
+      deliveryMethod: newOrder.deliveryMethod,
       whatsappMessage: whatsappMessage
     };
     
@@ -403,7 +499,8 @@ const Orders = () => {
       discount: 0,
       status: 'Yeni',
       courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz'
+      zone: 'Bakı Mərkəz',
+      deliveryMethod: 'Kuryer'
     });
     setShowAddModal(false);
   };
@@ -420,6 +517,7 @@ const Orders = () => {
         status: newOrder.status,
         courier: newOrder.courier,
         zone: newOrder.zone,
+        deliveryMethod: newOrder.deliveryMethod,
         whatsappMessage: `${newOrder.product} x${newOrder.quantity} ədəd - ${newOrder.price}₼`
       };
       
@@ -473,7 +571,8 @@ const Orders = () => {
       discount: order.discount || (order.price * order.quantity * 0.1),
       status: order.status,
       courier: order.courier,
-      zone: order.zone || 'Bakı Mərkəz'
+      zone: order.zone || 'Bakı Mərkəz',
+      deliveryMethod: order.deliveryMethod || 'Kuryer'
     });
     setShowEditModal(true);
   };
@@ -512,7 +611,7 @@ const Orders = () => {
   // Excel Export Function
   const exportToExcel = () => {
     // Check if we're exporting filtered data or all data
-    const isFiltered = searchTerm || statusFilter !== 'all' || employeeFilter !== 'all' || productFilter !== 'all';
+    const isFiltered = searchTerm || statusFilter !== 'all' || employeeFilter !== 'all' || productFilter !== 'all' || deliveryMethodFilter !== 'all';
     
     // Prepare data for export
     const exportData = filteredOrders.map(order => ({
@@ -528,6 +627,7 @@ const Orders = () => {
       'Tarix': order.date,
       'Zona': order.zone,
       'Kuryer': order.courier,
+      'Çatdırılma Üsulu': order.deliveryMethod,
       'WhatsApp Mesajı': order.whatsappMessage
     }));
 
@@ -551,6 +651,7 @@ const Orders = () => {
       { wch: 12 }, // Tarix
       { wch: 12 }, // Zona
       { wch: 15 }, // Kuryer
+      { wch: 18 }, // Çatdırılma Üsulu
       { wch: 50 }  // WhatsApp Mesajı
     ];
     worksheet['!cols'] = columnWidths;
@@ -570,7 +671,99 @@ const Orders = () => {
     setTimeout(() => setShowExportNotification(false), 3000);
   };
 
+  // Function to identify VIP customers
+  const getVIPCustomers = () => {
+    const customerStats = {};
+    
+    orders.forEach(order => {
+      if (order.customer) {
+        if (!customerStats[order.customer]) {
+          customerStats[order.customer] = {
+            orderCount: 0,
+            totalQuantity: 0,
+            totalSpent: 0
+          };
+        }
+        customerStats[order.customer].orderCount++;
+        customerStats[order.customer].totalQuantity += order.quantity;
+        customerStats[order.customer].totalSpent += order.price;
+      }
+    });
 
+    // Define VIP criteria: 3+ orders OR 10+ total quantity OR 500+ total spent
+    const vipCustomers = Object.keys(customerStats).filter(customer => {
+      const stats = customerStats[customer];
+      return stats.orderCount >= 3 || stats.totalQuantity >= 10 || stats.totalSpent >= 500;
+    });
+
+    return vipCustomers;
+  };
+
+  // Function to get VIP level and styling
+  const getVIPInfo = (customerName) => {
+    if (!customerName) return null;
+    
+    const vipCustomers = getVIPCustomers();
+    if (!vipCustomers.includes(customerName)) return null;
+
+    const customerStats = {};
+    orders.forEach(order => {
+      if (order.customer === customerName) {
+        if (!customerStats[order.customer]) {
+          customerStats[order.customer] = {
+            orderCount: 0,
+            totalQuantity: 0,
+            totalSpent: 0
+          };
+        }
+        customerStats[order.customer].orderCount++;
+        customerStats[order.customer].totalQuantity += order.quantity;
+        customerStats[order.customer].totalSpent += order.price;
+      }
+    });
+
+    const stats = customerStats[customerName];
+    
+    // Determine VIP level
+    let level = 'Bronze';
+    let color = 'text-amber-600';
+    let bgColor = 'bg-amber-50';
+    let borderColor = 'border-amber-200';
+    let icon = <Star className="w-4 h-4" />;
+    
+    if (stats.orderCount >= 5 || stats.totalQuantity >= 20 || stats.totalSpent >= 1000) {
+      level = 'Silver';
+      color = 'text-gray-600';
+      bgColor = 'bg-gray-50';
+      borderColor = 'border-gray-200';
+      icon = <Star className="w-4 h-4" />;
+    }
+    
+    if (stats.orderCount >= 10 || stats.totalQuantity >= 50 || stats.totalSpent >= 2000) {
+      level = 'Gold';
+      color = 'text-yellow-600';
+      bgColor = 'bg-yellow-50';
+      borderColor = 'border-yellow-200';
+      icon = <Crown className="w-4 h-4" />;
+    }
+    
+    if (stats.orderCount >= 20 || stats.totalQuantity >= 100 || stats.totalSpent >= 5000) {
+      level = 'Platinum';
+      color = 'text-purple-600';
+      bgColor = 'bg-purple-50';
+      borderColor = 'border-purple-200';
+      icon = <Crown className="w-4 h-4" />;
+    }
+
+    return {
+      level,
+      color,
+      bgColor,
+      borderColor,
+      icon,
+      stats
+    };
+  };
 
   return (
     <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
@@ -580,6 +773,8 @@ const Orders = () => {
         </h1>
         <p className="text-gray-600 text-lg">Ramton bot tərəfindən avtomatik tanınan və manual əlavə edilən sifarişlər</p>
       </div>
+      
+      
       
       {/* Statistik Kartları - Collapsible */}
       <div className="bg-white rounded-2xl mb-8 overflow-hidden">
@@ -652,6 +847,71 @@ const Orders = () => {
                   </div>
                 </div>
               </div>
+              
+              <div 
+                className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 border border-purple-200 cursor-pointer hover:shadow-lg group"
+                onClick={() => navigate('/musteriler?vip=true')}
+                title="VIP müştəriləri görmək üçün klikləyin"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-700">VIP Müştərilər</p>
+                    <p className="text-3xl font-bold text-purple-900">{getVIPCustomers().length}</p>
+                    <div className="flex items-center space-x-1">
+                      <p className="text-xs text-purple-600">Xüsusi müştərilər</p>
+                      <span className="text-xs text-purple-500 group-hover:text-purple-700 transition-colors">→</span>
+                    </div>
+                  </div>
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                    <Crown className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* VIP Müştərilər Siyahısı */}
+        {showStatistics && (
+          <div className="p-6 border-t border-gray-100">
+            <h3 
+              className="text-lg font-semibold text-gray-800 mb-4 flex items-center space-x-2 cursor-pointer hover:text-purple-600 transition-colors group"
+              onClick={() => navigate('/musteriler?vip=true')}
+              title="VIP müştəriləri görmək üçün klikləyin"
+            >
+              <Crown className="w-5 h-5 text-purple-600" />
+              <span>VIP Müştərilər</span>
+              <span className="text-sm text-gray-400 group-hover:text-purple-600 transition-colors">→</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {getVIPCustomers().map((customerName) => {
+                const vipInfo = getVIPInfo(customerName);
+                return (
+                  <div key={customerName} className={`p-4 rounded-xl border ${vipInfo.bgColor} ${vipInfo.borderColor}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-800">{customerName}</h4>
+                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${vipInfo.color} ${vipInfo.bgColor} ${vipInfo.borderColor} border`}>
+                        {vipInfo.icon}
+                        <span>{vipInfo.level}</span>
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Sifariş sayı:</span>
+                        <span className="font-medium text-gray-800">{vipInfo.stats.orderCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Ümumi miqdar:</span>
+                        <span className="font-medium text-gray-800">{vipInfo.stats.totalQuantity} ədəd</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Ümumi xərclər:</span>
+                        <span className="font-medium text-gray-800">₼{vipInfo.stats.totalSpent.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -683,7 +943,7 @@ const Orders = () => {
 
         {/* Axtarış və Filtrlər */}
         <div className="p-6 border-b border-gray-100 bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
@@ -745,10 +1005,25 @@ const Orders = () => {
               <option value="Gəncə">Gəncə</option>
             </select>
             
-            <button className="px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center">
-              <Filter className="w-4 h-4 mr-2" />
-              Filtr
-            </button>
+            <select
+              value={deliveryMethodFilter}
+              onChange={(e) => setDeliveryMethodFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+            >
+              <option value="all">Bütün Çatdırılma</option>
+              <option value="Kuryer">Kuryer</option>
+              <option value="Azerpoct Filialı">Azerpoct Filialı</option>
+            </select>
+            
+            <select
+              value={vipFilter}
+              onChange={(e) => setVipFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+            >
+              <option value="all">Bütün Müştərilər</option>
+              <option value="vip">Yalnız VIP</option>
+              <option value="non-vip">Yalnız Adi</option>
+            </select>
           </div>
         </div>
       </div>
@@ -771,8 +1046,16 @@ const Orders = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
-                <div>
-                  <p className="font-medium text-gray-800">{order.customer || order.employee}</p>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <p className="font-medium text-gray-800">{order.customer || order.employee}</p>
+                    {order.customer && getVIPInfo(order.customer) && (
+                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getVIPInfo(order.customer).bgColor} ${getVIPInfo(order.customer).color} ${getVIPInfo(order.customer).borderColor} border`}>
+                        {getVIPInfo(order.customer).icon}
+                        <span>{getVIPInfo(order.customer).level}</span>
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">{order.date}</p>
                 </div>
               </div>
@@ -795,7 +1078,15 @@ const Orders = () => {
                       <User className="w-4 h-4 text-gray-500" />
                       <span className="text-gray-600">Müştəri:</span>
                     </div>
-                    <span className="font-medium text-gray-800">{order.customer}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium text-gray-800">{order.customer}</span>
+                      {getVIPInfo(order.customer) && (
+                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getVIPInfo(order.customer).bgColor} ${getVIPInfo(order.customer).color} ${getVIPInfo(order.customer).borderColor} border`}>
+                          {getVIPInfo(order.customer).icon}
+                          <span>{getVIPInfo(order.customer).level}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
                 
@@ -838,6 +1129,20 @@ const Orders = () => {
                     <span className="text-gray-600">Zona:</span>
                   </div>
                   <span className="font-medium text-gray-800">{order.zone}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Truck className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-600">Çatdırılma:</span>
+                  </div>
+                  <span className={`font-medium px-2 py-1 rounded-full text-xs ${
+                    order.deliveryMethod === 'Kuryer' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {order.deliveryMethod}
+                  </span>
                 </div>
               </div>
 
@@ -1009,9 +1314,17 @@ const Orders = () => {
                       <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
                         <User className="w-5 h-5 text-white" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <h5 className="font-medium text-gray-800">Müştəri</h5>
-                        <p className="text-gray-600">{selectedOrder.customer}</p>
+                        <div className="flex items-center space-x-2">
+                          <p className="text-gray-600">{selectedOrder.customer}</p>
+                          {getVIPInfo(selectedOrder.customer) && (
+                            <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getVIPInfo(selectedOrder.customer).bgColor} ${getVIPInfo(selectedOrder.customer).color} ${getVIPInfo(selectedOrder.customer).borderColor} border`}>
+                              {getVIPInfo(selectedOrder.customer).icon}
+                              <span>{getVIPInfo(selectedOrder.customer).level}</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1061,6 +1374,21 @@ const Orders = () => {
                     </div>
                     <p className="text-gray-600">{selectedOrder.zone}</p>
                   </div>
+                </div>
+
+                {/* Çatdırılma Üsulu */}
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Truck className="w-5 h-5 text-blue-600" />
+                    <h5 className="font-medium text-gray-800">Çatdırılma Üsulu</h5>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedOrder.deliveryMethod === 'Kuryer' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {selectedOrder.deliveryMethod}
+                  </span>
                 </div>
 
                 {/* WhatsApp Mesajı */}
@@ -1154,7 +1482,7 @@ const Orders = () => {
                   <option value="">Müştəri seçin</option>
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.name}>
-                      {customer.name} - {customer.city} ({customer.phone})
+                      {customer.name} - {customer.city} ({customer.phone}) {getVIPInfo(customer.name) ? `[${getVIPInfo(customer.name).level}]` : ''}
                     </option>
                   ))}
                 </select>
@@ -1297,6 +1625,31 @@ const Orders = () => {
                   <option value="Elşən Məmmədov">Elşən Məmmədov</option>
                   <option value="Orxan Əliyev">Orxan Əliyev</option>
                   <option value="Təyin edilməyib">Təyin edilməyib</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Üsulu</label>
+                <select
+                  value={newOrder.deliveryMethod}
+                  onChange={(e) => setNewOrder({...newOrder, deliveryMethod: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Kuryer">Kuryer Çatdırılması</option>
+                  <option value="Azerpoct Filialı">Azerpoct Filialından Çatdırılma</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Zona</label>
+                <select
+                  value={newOrder.zone}
+                  onChange={(e) => setNewOrder({...newOrder, zone: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Bakı Mərkəz">Bakı Mərkəz</option>
+                  <option value="Sumqayıt">Sumqayıt</option>
+                  <option value="Gəncə">Gəncə</option>
                 </select>
               </div>
               </div>
@@ -1346,7 +1699,7 @@ const Orders = () => {
                   <option value="">Müştəri seçin</option>
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.name}>
-                      {customer.name} - {customer.city} ({customer.phone})
+                      {customer.name} - {customer.city} ({customer.phone}) {getVIPInfo(customer.name) ? `[${getVIPInfo(customer.name).level}]` : ''}
                     </option>
                   ))}
                 </select>
@@ -1488,6 +1841,31 @@ const Orders = () => {
                   <option value="Elşən Məmmədov">Elşən Məmmədov</option>
                   <option value="Orxan Əliyev">Orxan Əliyev</option>
                   <option value="Təyin edilməyib">Təyin edilməyib</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Üsulu</label>
+                <select
+                  value={newOrder.deliveryMethod}
+                  onChange={(e) => setNewOrder({...newOrder, deliveryMethod: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Kuryer">Kuryer Çatdırılması</option>
+                  <option value="Azerpoct Filialı">Azerpoct Filialından Çatdırılma</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Zona</label>
+                <select
+                  value={newOrder.zone}
+                  onChange={(e) => setNewOrder({...newOrder, zone: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Bakı Mərkəz">Bakı Mərkəz</option>
+                  <option value="Sumqayıt">Sumqayıt</option>
+                  <option value="Gəncə">Gəncə</option>
                 </select>
               </div>
               </div>
@@ -1629,7 +2007,7 @@ const Orders = () => {
       {showExportNotification && (
         <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 flex items-center space-x-2">
           <CheckCircle className="w-5 h-5" />
-          <span>{filteredOrders.length} sifariş {(searchTerm || statusFilter !== 'all' || employeeFilter !== 'all' || productFilter !== 'all') ? '(filtrli)' : ''} uğurla yükləndi!</span>
+                          <span>{filteredOrders.length} sifariş {(searchTerm || statusFilter !== 'all' || employeeFilter !== 'all' || productFilter !== 'all' || deliveryMethodFilter !== 'all' || vipFilter !== 'all') ? '(filtrli)' : ''} uğurla yükləndi!</span>
         </div>
       )}
     </div>

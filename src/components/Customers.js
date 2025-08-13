@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -19,11 +19,13 @@ import {
   Download
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useLocation } from 'react-router-dom';
 
 const Customers = () => {
   // State management
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [vipFilter, setVipFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [customersPerPage] = useState(8);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -183,6 +185,22 @@ const Customers = () => {
   ];
 
   const [customers, setCustomers] = useState(initialCustomers);
+  const location = useLocation();
+
+  // Handle URL parameters for VIP filtering
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const vipParam = searchParams.get('vip');
+    if (vipParam === 'true') {
+      setVipFilter('vip');
+    }
+  }, [location]);
+
+  // VIP customer detection function
+  const isVIPCustomer = (customer) => {
+    // VIP criteria: 3+ orders OR 500+ total spent OR 10+ total quantity (if we had quantity data)
+    return customer.totalOrders >= 3 || customer.totalSpent >= 500;
+  };
 
   // Helper functions
   const getStatusColor = (status) => {
@@ -242,7 +260,16 @@ const Customers = () => {
                          customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer.phone.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    // VIP filtering logic
+    let matchesVip = true;
+    if (vipFilter === 'vip') {
+      matchesVip = isVIPCustomer(customer);
+    } else if (vipFilter === 'non-vip') {
+      matchesVip = !isVIPCustomer(customer);
+    }
+    
+    return matchesSearch && matchesStatus && matchesVip;
   });
 
   // Pagination logic
@@ -489,6 +516,16 @@ const Customers = () => {
                 <option value="Gözləyir">Gözləyir</option>
                 <option value="Passiv">Passiv</option>
               </select>
+              
+              <select
+                value={vipFilter}
+                onChange={(e) => setVipFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Bütün Müştərilər</option>
+                <option value="vip">Yalnız VIP</option>
+                <option value="non-vip">Yalnız Adi</option>
+              </select>
             </div>
             
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
@@ -512,9 +549,45 @@ const Customers = () => {
       </div>
 
       {/* Customers Table */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+              {/* Filter Summary */}
+        {(searchTerm || statusFilter !== 'all' || vipFilter !== 'all') && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-blue-800">Aktiv Filtrlər:</span>
+                {searchTerm && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Axtarış: {searchTerm}
+                  </span>
+                )}
+                {statusFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Status: {statusFilter}
+                  </span>
+                )}
+                {vipFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    VIP: {vipFilter === 'vip' ? 'Yalnız VIP' : 'Yalnız Adi'}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setVipFilter('all');
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Bütün filtrləri təmizlə
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
+          <div className="overflow-x-auto">
+            <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="text-left py-4 px-6 font-semibold text-gray-700">Müştəri</th>
@@ -531,7 +604,15 @@ const Customers = () => {
                 <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-6">
                     <div>
-                      <p className="font-medium text-gray-900">{customer.name}</p>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-gray-900">{customer.name}</p>
+                        {isVIPCustomer(customer) && (
+                          <span className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                            <span>👑</span>
+                            <span>VIP</span>
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500">ID: {customer.id}</p>
                     </div>
                   </td>

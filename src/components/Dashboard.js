@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Users, 
   ShoppingCart, 
@@ -42,12 +42,35 @@ ChartJS.register(
 );
 
 const Dashboard = () => {
+  const [selectedCountry, setSelectedCountry] = useState('az');
+  
+  // Language and localization functions
+  const getText = (azText, trText) => {
+    return selectedCountry === 'az' ? azText : trText;
+  };
+
+  const getCurrency = () => {
+    return selectedCountry === 'az' ? '₼' : '₺';
+  };
+
+  const getLanguage = () => {
+    return selectedCountry === 'az' ? 'Azərbaycan dili' : 'Türk dili';
+  };
+
+  const getTimezone = () => {
+    return selectedCountry === 'az' ? 'UTC+4 (Bakı)' : 'UTC+3 (İstanbul)';
+  };
+
+  const getCurrencyName = () => {
+    return selectedCountry === 'az' ? 'Azərbaycan Manatı (₼)' : 'Türk Lirası (₺)';
+  };
+
   // Satış Trendi Chart
   const salesTrendData = {
     labels: ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyun', 'İyul', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'],
     datasets: [
       {
-        label: 'Satışlar (₼)',
+        label: `Satışlar (${getCurrency()})`,
         data: [12000, 15000, 18000, 22000, 25000, 28000, 32000, 35000, 38000, 42000, 45000, 48000],
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -55,7 +78,7 @@ const Dashboard = () => {
         tension: 0.4,
       },
       {
-        label: 'Hədəf (₼)',
+        label: `Hədəf (${getCurrency()})`,
         data: [15000, 18000, 22000, 25000, 28000, 32000, 35000, 38000, 42000, 45000, 48000, 50000],
         borderColor: 'rgb(239, 68, 68)',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -74,7 +97,7 @@ const Dashboard = () => {
       },
       title: {
         display: true,
-        text: 'Aylıq Satış Trendi',
+        text: getText('Aylıq Satış Trendi', 'Aylık Satış Trendi'),
         font: {
           size: 16,
           weight: 'bold'
@@ -86,7 +109,7 @@ const Dashboard = () => {
         beginAtZero: true,
         ticks: {
           callback: function(value) {
-            return '₼' + value.toLocaleString();
+            return getCurrency() + value.toLocaleString();
           }
         }
       }
@@ -125,7 +148,7 @@ const Dashboard = () => {
       },
       title: {
         display: true,
-        text: 'Əməkdaş Performansı',
+        text: getText('Əməkdaş Performansı', 'Çalışan Performansı'),
         font: {
           size: 16,
           weight: 'bold'
@@ -174,7 +197,7 @@ const Dashboard = () => {
       },
       title: {
         display: true,
-        text: 'Məhsul Satışları',
+        text: getText('Məhsul Satışları', 'Ürün Satışları'),
         font: {
           size: 16,
           weight: 'bold'
@@ -222,7 +245,7 @@ const Dashboard = () => {
       },
       title: {
         display: true,
-        text: 'Sifariş Statusları',
+        text: getText('Sifariş Statusları', 'Sipariş Durumları'),
         font: {
           size: 16,
           weight: 'bold'
@@ -235,9 +258,97 @@ const Dashboard = () => {
     <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Ramton CRM Dashboard
+          {getText('Ramton CRM Dashboard', 'Ramton CRM Dashboard')}
         </h1>
-        <p className="text-gray-600 text-lg">Ramton satış qrupu bot sistemi ilə inteqrasiya olunan CRM paneli</p>
+        <p className="text-gray-600 text-lg">{getText('Ramton satış qrupu bot sistemi ilə inteqrasiya olunan CRM paneli', 'Ramton satış grubu bot sistemi ile entegre olan CRM paneli')}</p>
+      </div>
+      
+      {/* Ölkə Seçimi */}
+      <div className="bg-white rounded-2xl mb-8 p-6 border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-semibold text-gray-800">{getText('Ölkə Seçimi', 'Ülke Seçimi')}</h2>
+            <span className="text-sm text-gray-500">{getText('Sistem dilini və valyutasını dəyişdirin', 'Sistem dilini ve para birimini değiştirin')}</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <select
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white"
+            >
+              <option value="az" className="flex items-center space-x-2">
+                🇦🇿 Azərbaycan
+              </option>
+              <option value="tr" className="flex items-center space-x-2">
+                🇹🇷 Türkiye
+              </option>
+            </select>
+            
+            {/* Seçilmiş ölkə göstəricisi */}
+            <div className="flex items-center space-x-2 px-4 py-2 bg-gray-50 rounded-lg">
+              {selectedCountry === 'az' ? (
+                <>
+                  <span className="text-2xl">🇦🇿</span>
+                  <span className="font-medium text-gray-800">Azərbaycan</span>
+                  <span className="text-sm text-gray-500">({getCurrency()})</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl">🇹🇷</span>
+                  <span className="font-medium text-gray-800">Türkiye</span>
+                  <span className="text-sm text-gray-500">({getCurrency()})</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Ölkə məlumatları */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-lg">
+                  {getCurrency()}
+                </span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-700">Valyuta</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {getCurrencyName()}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-lg">🌍</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-700">Dil</p>
+                <p className="text-lg font-bold text-green-900">
+                  {getLanguage()}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-lg">⏰</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-purple-700">Saat Qurşağı</p>
+                <p className="text-lg font-bold text-purple-900">
+                  {getTimezone()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       
       {/* Ana Statistik Kartları */}
@@ -245,11 +356,11 @@ const Dashboard = () => {
         <div className="bg-white p-6 rounded-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Gündəlik Satış</p>
-              <p className="text-3xl font-bold text-gray-900">₼2,450</p>
+              <p className="text-sm font-medium text-gray-600">{getText('Gündəlik Satış', 'Günlük Satış')}</p>
+              <p className="text-3xl font-bold text-gray-900">{getCurrency()}2,450</p>
               <p className="text-sm text-green-600 flex items-center mt-1">
                 <TrendingUp className="w-4 h-4 mr-1" />
-                +15% dünənə görə
+                {getText('+15% dünənə görə', '+15% düne göre')}
               </p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center">
@@ -261,11 +372,11 @@ const Dashboard = () => {
         <div className="bg-white p-6 rounded-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Aylıq Satış</p>
-              <p className="text-3xl font-bold text-gray-900">₼45,230</p>
+              <p className="text-sm font-medium text-gray-600">{getText('Aylıq Satış', 'Aylık Satış')}</p>
+              <p className="text-3xl font-bold text-gray-900">{getCurrency()}45,230</p>
               <p className="text-sm text-blue-600 flex items-center mt-1">
                 <BarChart3 className="w-4 h-4 mr-1" />
-                +8% keçən aya görə
+                {getText('+8% keçən aya görə', '+8% geçen aya göre')}
               </p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center">
