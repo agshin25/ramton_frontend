@@ -1,277 +1,121 @@
-import React, { useState } from 'react';
-import { 
-  Search, Plus, Edit, Trash2, Shield, Users, Eye, X, 
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Lock, UserCheck, Settings, BarChart3, Package, MapPin
-} from 'lucide-react';
+import React, { useState } from "react";
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Shield,
+  Users,
+  Eye,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  CheckCircle,
+  AlertTriangle,
+  Check,
+} from "lucide-react";
+import {
+  useGetRolesQuery,
+  useCreateRoleMutation,
+  useUpdateRoleMutation,
+  useDeleteRoleMutation,
+} from "../services/rolesApi";
+
+// Permission types enum based on backend PermissionType
+const PERMISSION_TYPES = {
+  DASHBOARD: "dashboard",
+  ALL: "all",
+  ADMINS: "admins",
+  ORDERS: "orders",
+  EMPLOYEES: "employees",
+  PRODUCTS: "products",
+  COURIERS: "couriers",
+};
+
+// Status enum based on backend Status
+const ROLE_STATUS = {
+  ACTIVE: "active",
+  INACTIVE: "deactive",
+  PASSIV: "passiv",
+};
 
 const Roles = () => {
-  // Sample roles data
-  const initialRoles = [
-    {
-      id: 1,
-      name: 'Super Admin',
-      type: 'admin',
-      description: 'Tam sistemə giriş və bütün funksiyalar',
-      permissions: ['all'],
-      userCount: 1,
-      status: 'Aktiv',
-      createdAt: '2023-01-01',
-      updatedAt: '2024-01-25',
-      color: 'bg-red-100 text-red-800',
-      icon: 'Shield'
-    },
-    {
-      id: 2,
-      name: 'Admin',
-      type: 'admin',
-      description: 'Sistem idarəetməsi və hesabatlar',
-      permissions: ['dashboard', 'orders', 'customers', 'products', 'categories', 'couriers', 'zones', 'employees', 'reports', 'analytics', 'settings'],
-      userCount: 3,
-      status: 'Aktiv',
-      createdAt: '2023-02-15',
-      updatedAt: '2024-01-20',
-      color: 'bg-blue-100 text-blue-800',
-      icon: 'Settings'
-    },
-    {
-      id: 3,
-      name: 'Moderator',
-      type: 'admin',
-      description: 'Sifariş və məzmun idarəetməsi',
-      permissions: ['dashboard', 'orders', 'customers', 'products', 'categories', 'couriers', 'zones', 'reports'],
-      userCount: 2,
-      status: 'Aktiv',
-      createdAt: '2023-03-10',
-      updatedAt: '2024-01-18',
-      color: 'bg-purple-100 text-purple-800',
-      icon: 'UserCheck'
-    },
-    {
-      id: 4,
-      name: 'Support',
-      type: 'admin',
-      description: 'Müştəri dəstəyi və sifariş idarəetməsi',
-      permissions: ['dashboard', 'orders', 'customers', 'reports'],
-      userCount: 4,
-      status: 'Aktiv',
-      createdAt: '2023-04-05',
-      updatedAt: '2024-01-22',
-      color: 'bg-green-100 text-green-800',
-      icon: 'Users'
-    },
-    {
-      id: 5,
-      name: 'Manager',
-      type: 'admin',
-      description: 'Biznes əməliyyatları və analitika',
-      permissions: ['dashboard', 'orders', 'products', 'employees', 'reports', 'analytics'],
-      userCount: 2,
-      status: 'Aktiv',
-      createdAt: '2023-05-20',
-      updatedAt: '2024-01-19',
-      color: 'bg-orange-100 text-orange-800',
-      icon: 'BarChart3'
-    },
-    {
-      id: 6,
-      name: 'Analitik',
-      type: 'admin',
-      description: 'Məlumat analizi və hesabatlar',
-      permissions: ['dashboard', 'reports', 'analytics', 'logs'],
-      userCount: 1,
-      status: 'Aktiv',
-      createdAt: '2023-06-15',
-      updatedAt: '2024-01-21',
-      color: 'bg-indigo-100 text-indigo-800',
-      icon: 'BarChart3'
-    },
-    {
-      id: 7,
-      name: 'Satış Məsləhətçisi',
-      type: 'employee',
-      description: 'Məhsul satışı və müştəri xidməti',
-      permissions: ['dashboard', 'products', 'customers', 'orders'],
-      userCount: 8,
-      status: 'Aktiv',
-      createdAt: '2023-07-01',
-      updatedAt: '2024-01-23',
-      color: 'bg-green-100 text-green-800',
-      icon: 'Users'
-    },
-    {
-      id: 8,
-      name: 'Kuryer',
-      type: 'employee',
-      description: 'Çatdırılma və sifariş idarəetməsi',
-      permissions: ['dashboard', 'orders', 'zones'],
-      userCount: 12,
-      status: 'Aktiv',
-      createdAt: '2023-08-10',
-      updatedAt: '2024-01-24',
-      color: 'bg-blue-100 text-blue-800',
-      icon: 'Package'
-    },
-    {
-      id: 9,
-      name: 'Anbarçı',
-      type: 'employee',
-      description: 'Məhsul və anbar idarəetməsi',
-      permissions: ['dashboard', 'products', 'categories'],
-      userCount: 3,
-      status: 'Aktiv',
-      createdAt: '2023-09-05',
-      updatedAt: '2024-01-20',
-      color: 'bg-yellow-100 text-yellow-800',
-      icon: 'Package'
-    },
-    {
-      id: 10,
-      name: 'Mühasib',
-      type: 'employee',
-      description: 'Maliyyə və hesabat idarəetməsi',
-      permissions: ['dashboard', 'reports', 'analytics'],
-      userCount: 2,
-      status: 'Aktiv',
-      createdAt: '2023-10-15',
-      updatedAt: '2024-01-18',
-      color: 'bg-purple-100 text-purple-800',
-      icon: 'BarChart3'
-    }
-  ];
+  // API hooks
+  const { data: rolesData, isLoading, isError } = useGetRolesQuery();
+  const [createRole, { isLoading: isCreating }] = useCreateRoleMutation();
+  const [updateRole, { isLoading: isUpdating }] = useUpdateRoleMutation();
+  const [deleteRole, { isLoading: isDeleting }] = useDeleteRoleMutation();
+
+  // Extract roles from API response
+  const roles = rolesData?.data || [];
 
   // State management
-  const [roles, setRoles] = useState(initialRoles);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleTypeFilter, setRoleTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [rolesPerPage] = useState(8);
-  
+  const [rolesPerPage] = useState(10);
+
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
-  
-  // Form state
   const [newRole, setNewRole] = useState({
-    name: '',
-    type: 'admin',
-    description: '',
+    name: "",
+    description: "",
+    role_type: "",
     permissions: [],
-    status: 'Aktiv',
-    color: 'bg-blue-100 text-blue-800',
-    icon: 'Shield'
+    status: "active",
   });
 
-  // Available permissions
-  const permissions = [
-    { id: 'all', name: 'Bütün İcazələr', description: 'Tam sistemə giriş' },
-    { id: 'dashboard', name: 'Dashboard', description: 'Ana səhifə və statistikalar' },
-    { id: 'orders', name: 'Sifarişlər', description: 'Sifariş idarəetməsi' },
-    { id: 'customers', name: 'Müştərilər', description: 'Müştəri idarəetməsi' },
-    { id: 'products', name: 'Məhsullar', description: 'Məhsul idarəetməsi' },
-    { id: 'categories', name: 'Kateqoriyalar', description: 'Kateqoriya idarəetməsi' },
-    { id: 'couriers', name: 'Kuryerlər', description: 'Kuryer idarəetməsi' },
-    { id: 'zones', name: 'Zonalar', description: 'Zona idarəetməsi' },
-    { id: 'employees', name: 'Əməkdaşlar', description: 'Əməkdaş idarəetməsi' },
-    { id: 'admins', name: 'Adminlər', description: 'Admin idarəetməsi' },
-    { id: 'reports', name: 'Hesabatlar', description: 'Hesabat və analitika' },
-    { id: 'analytics', name: 'Analitika', description: 'Detallı analitika' },
-    { id: 'settings', name: 'Tənzimləmələr', description: 'Sistem tənzimləmələri' },
-    { id: 'users', name: 'İstifadəçilər', description: 'İstifadəçi idarəetməsi' },
-    { id: 'logs', name: 'Loglar', description: 'Sistem logları' },
-    { id: 'backup', name: 'Yedəkləmə', description: 'Məlumat yedəkləmə' }
-  ];
+  // Toast notification states
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success");
 
-  // Role types and colors
-  const roleTypes = [
-    { id: 'admin', name: 'Admin', color: 'bg-purple-100 text-purple-800' },
-    { id: 'employee', name: 'Əməkdaş', color: 'bg-blue-100 text-blue-800' }
-  ];
-
-  const roleColors = [
-    { id: 'bg-red-100 text-red-800', name: 'Qırmızı' },
-    { id: 'bg-blue-100 text-blue-800', name: 'Mavi' },
-    { id: 'bg-green-100 text-green-800', name: 'Yaşıl' },
-    { id: 'bg-yellow-100 text-yellow-800', name: 'Sarı' },
-    { id: 'bg-purple-100 text-purple-800', name: 'Bənövşəyi' },
-    { id: 'bg-pink-100 text-pink-800', name: 'Çəhrayı' },
-    { id: 'bg-indigo-100 text-indigo-800', name: 'İndiqo' },
-    { id: 'bg-orange-100 text-orange-800', name: 'Narıncı' },
-    { id: 'bg-teal-100 text-teal-800', name: 'Türküş' },
-    { id: 'bg-gray-100 text-gray-800', name: 'Boz' }
-  ];
-
-  const roleIcons = [
-    { id: 'Shield', name: 'Qalxan', icon: Shield },
-    { id: 'Users', name: 'İstifadəçilər', icon: Users },
-    { id: 'Settings', name: 'Tənzimləmələr', icon: Settings },
-    { id: 'BarChart3', name: 'Hesabat', icon: BarChart3 },
-    { id: 'Package', name: 'Paket', icon: Package },
-    { id: 'MapPin', name: 'Xəritə', icon: MapPin },
-    { id: 'UserCheck', name: 'Yoxlama', icon: UserCheck },
-    { id: 'Lock', name: 'Kilid', icon: Lock }
-  ];
-
-  // Helper functions
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Aktiv': return 'bg-green-100 text-green-800';
-      case 'Passiv': return 'bg-red-100 text-red-800';
-      case 'Gözləyir': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  // Toast notification function
+  const showToastNotification = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
-  const getTypeColor = (type) => {
-    const typeObj = roleTypes.find(t => t.id === type);
-    return typeObj ? typeObj.color : 'bg-gray-100 text-gray-800';
-  };
+  // Filter roles
+  const filteredRoles = roles.filter((role) => {
+    const matchesSearch =
+      role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      role.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || role.status === statusFilter;
+    const matchesRoleType =
+      roleTypeFilter === "all" || role.role_type === roleTypeFilter;
 
-  const getIconComponent = (iconName) => {
-    const iconObj = roleIcons.find(i => i.id === iconName);
-    return iconObj ? iconObj.icon : Shield;
-  };
-
-  const getPermissionName = (permissionId) => {
-    const permission = permissions.find(p => p.id === permissionId);
-    return permission ? permission.name : permissionId;
-  };
-
-  const getPermissionDescription = (permissionId) => {
-    const permission = permissions.find(p => p.id === permissionId);
-    return permission ? permission.description : '';
-  };
-
-  // Filtering logic
-  const filteredRoles = roles.filter(role => {
-    const matchesSearch = role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         role.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || role.status === statusFilter;
-    const matchesType = typeFilter === 'all' || role.type === typeFilter;
-    
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatus && matchesRoleType;
   });
 
-  // Pagination logic
+  // Pagination
   const indexOfLastRole = currentPage * rolesPerPage;
   const indexOfFirstRole = indexOfLastRole - rolesPerPage;
   const currentRoles = filteredRoles.slice(indexOfFirstRole, indexOfLastRole);
   const totalPages = Math.ceil(filteredRoles.length / rolesPerPage);
 
   const goToPage = (pageNumber) => setCurrentPage(pageNumber);
-  const goToNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-  const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const goToNextPage = () =>
+    currentPage < totalPages && setCurrentPage(currentPage + 1);
+  const goToPreviousPage = () =>
+    currentPage > 1 && setCurrentPage(currentPage - 1);
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
 
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
@@ -281,82 +125,211 @@ const Roles = () => {
         for (let i = 1; i <= 4; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       } else if (currentPage >= totalPages - 2) {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = totalPages - 3; i <= totalPages; i++) {
           pageNumbers.push(i);
         }
       } else {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = currentPage - 1; i <= currentPage + 1; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
-  // Statistics
-  const totalRoles = roles.length;
-  const activeRoles = roles.filter(role => role.status === 'Aktiv').length;
-  const adminRoles = roles.filter(role => role.type === 'admin').length;
-  const employeeRoles = roles.filter(role => role.type === 'employee').length;
-
-  // CRUD operations
-  const handleAddRole = () => {
-    const newId = Math.max(...roles.map(r => r.id)) + 1;
-    const roleToAdd = {
-      ...newRole,
-      id: newId,
-      userCount: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0]
-    };
-    setRoles([...roles, roleToAdd]);
-    setNewRole({
-      name: '',
-      type: 'admin',
-      description: '',
-      permissions: [],
-      status: 'Aktiv',
-      color: 'bg-blue-100 text-blue-800',
-      icon: 'Shield'
-    });
-    setShowAddModal(false);
+  // Helper functions
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "deactive":
+        return "bg-red-100 text-red-800";
+      case "passiv":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
   };
 
-  const handleEditRole = () => {
-    const updatedRoles = roles.map(role => 
-      role.id === selectedRole.id 
-        ? { ...role, ...newRole, updatedAt: new Date().toISOString().split('T')[0] }
-        : role
-    );
-    setRoles(updatedRoles);
-    setShowEditModal(false);
+  const getStatusText = (status) => {
+    switch (status) {
+      case "active":
+        return "Aktiv";
+      case "deactive":
+        return "Qeyri-aktiv";
+      case "passiv":
+        return "Passiv";
+      default:
+        return status;
+    }
   };
 
-  const handleDeleteRole = () => {
-    setRoles(roles.filter(role => role.id !== selectedRole.id));
-    setShowDeleteModal(false);
+  const getRoleTypeColor = (roleType) => {
+    switch (roleType) {
+      case "admin":
+        return "bg-purple-100 text-purple-800";
+      case "employee":
+        return "bg-blue-100 text-blue-800";
+      case "courier":
+        return "bg-orange-100 text-orange-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getRoleTypeText = (roleType) => {
+    switch (roleType) {
+      case "admin":
+        return "Admin";
+      case "employee":
+        return "Əməkdaş";
+      case "courier":
+        return "Kuryer";
+      default:
+        return roleType;
+    }
+  };
+
+  const getPermissionText = (permission) => {
+    switch (permission) {
+      case "dashboard":
+        return "Dashboard";
+      case "all":
+        return "Bütün İcazələr";
+      case "admins":
+        return "Adminlər";
+      case "orders":
+        return "Sifarişlər";
+      case "employees":
+        return "Əməkdaşlar";
+      case "products":
+        return "Məhsullar";
+      case "couriers":
+        return "Kuryerlər";
+      default:
+        return permission;
+    }
+  };
+
+  // CRUD functions
+  const handleAddRole = async () => {
+    try {
+      const roleData = {
+        ...newRole,
+        description:
+          newRole.description && newRole.description.trim() !== ""
+            ? newRole.description
+            : null,
+      };
+      await createRole(roleData).unwrap();
+      showToastNotification("Rol uğurla əlavə edildi!", "success");
+      setShowAddModal(false);
+      // Reset form
+      setNewRole({
+        name: "",
+        description: "",
+        role_type: "",
+        permissions: [],
+        status: "active",
+      });
+    } catch (error) {
+      console.error("Rol əlavə edilərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Rol əlavə edilərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
+  };
+
+  const handleEditRole = async () => {
+    try {
+      // Only send changed fields
+      const roleData = {};
+
+      // Check if name has changed
+      if (newRole.name !== selectedRole.name) {
+        roleData.name = newRole.name;
+      }
+
+      // Check if description has changed
+      const newDescription =
+        newRole.description && newRole.description.trim() !== ""
+          ? newRole.description
+          : null;
+      if (newDescription !== selectedRole.description) {
+        roleData.description = newDescription;
+      }
+
+      // Check if role_type has changed
+      if (newRole.role_type !== selectedRole.role_type) {
+        roleData.role_type = newRole.role_type;
+      }
+
+      // Check if permissions have changed
+      const currentPermissions = selectedRole.permissions || [];
+      const newPermissions = newRole.permissions || [];
+      const permissionsChanged =
+        currentPermissions.length !== newPermissions.length ||
+        !currentPermissions.every((permission) =>
+          newPermissions.includes(permission)
+        );
+
+      if (permissionsChanged) {
+        roleData.permissions = newPermissions;
+      }
+
+      // Check if status has changed
+      if (newRole.status !== selectedRole.status) {
+        roleData.status = newRole.status;
+      }
+
+      // Only proceed if there are changes
+      if (Object.keys(roleData).length === 0) {
+        showToastNotification("Heç bir dəyişiklik edilməyib!", "error");
+        return;
+      }
+
+      await updateRole({ id: selectedRole.id, ...roleData }).unwrap();
+      showToastNotification("Rol uğurla yeniləndi!", "success");
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Rol yenilənərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Rol yenilənərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
+  };
+
+  const handleDeleteRole = async () => {
+    try {
+      await deleteRole(selectedRole.id).unwrap();
+      showToastNotification("Rol uğurla silindi!", "success");
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Rol silinərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Rol silinərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
   };
 
   const openEditModal = (role) => {
     setSelectedRole(role);
     setNewRole({
       name: role.name,
-      type: role.type,
-      description: role.description,
-      permissions: role.permissions,
+      description: role.description || "",
+      role_type: role.role_type,
+      permissions: role.permissions || [],
       status: role.status,
-      color: role.color,
-      icon: role.icon
     });
     setShowEditModal(true);
   };
@@ -371,392 +344,504 @@ const Roles = () => {
     setShowViewModal(true);
   };
 
+  // Permission handling
+  const handlePermissionChange = (permission, isChecked) => {
+    if (isChecked) {
+      setNewRole({
+        ...newRole,
+        permissions: [...newRole.permissions, permission],
+      });
+    } else {
+      setNewRole({
+        ...newRole,
+        permissions: newRole.permissions.filter((p) => p !== permission),
+      });
+    }
+  };
+
+  const handleSelectAllPermissions = () => {
+    setNewRole({
+      ...newRole,
+      permissions: Object.values(PERMISSION_TYPES),
+    });
+  };
+
+  const handleClearAllPermissions = () => {
+    setNewRole({
+      ...newRole,
+      permissions: [],
+    });
+  };
+
+  // Statistics
+  const totalRoles = roles.length;
+  const activeRoles = roles.filter((role) => role.status === "active").length;
+  const adminRoles = roles.filter((role) => role.role_type === "admin").length;
+  const employeeRoles = roles.filter(
+    (role) => role.role_type === "employee"
+  ).length;
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Rollar yüklənir...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <div className="flex items-center">
+            <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-red-800">
+                Xəta baş verdi
+              </h3>
+              <p className="text-red-600">
+                Rollar yüklənərkən xəta baş verdi. Zəhmət olmasa səhifəni
+                yeniləyin.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Rollar və İcazələr</h1>
-        <p className="text-gray-600">Sistem rollarını və icazələrini idarə edin</p>
-      </div>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Rollar</h1>
+          <p className="text-gray-600">
+            İstifadəçi rollarının və icazələrin idarə edilməsi
+          </p>
+        </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Ümumi Rollar</p>
-              <p className="text-2xl font-bold text-gray-900">{totalRoles}</p>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Shield className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Ümumi Rollar
+                </p>
+                <p className="text-2xl font-bold text-gray-900">{totalRoles}</p>
+              </div>
             </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Shield className="w-6 h-6 text-blue-600" />
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Aktiv Rollar
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {activeRoles}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Users className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Admin Rolları
+                </p>
+                <p className="text-2xl font-bold text-gray-900">{adminRoles}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Users className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Əməkdaş Rolları
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {employeeRoles}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Aktiv Rollar</p>
-              <p className="text-2xl font-bold text-gray-900">{activeRoles}</p>
+        {/* Search and Filter */}
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Rol adı və ya təsvir axtar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <UserCheck className="w-6 h-6 text-green-600" />
+
+            <div className="flex gap-4">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Bütün Statuslar</option>
+                <option value="active">Aktiv</option>
+                <option value="passiv">Passiv</option>
+                <option value="deactive">Qeyri-aktiv</option>
+              </select>
+
+              <select
+                value={roleTypeFilter}
+                onChange={(e) => setRoleTypeFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Bütün Rollar</option>
+                <option value="admin">Admin</option>
+                <option value="employee">Əməkdaş</option>
+                <option value="courier">Kuryer</option>
+              </select>
+
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Yeni Rol
+              </button>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Admin Rolları</p>
-              <p className="text-2xl font-bold text-gray-900">{adminRoles}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Settings className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Əməkdaş Rolları</p>
-              <p className="text-2xl font-bold text-gray-900">{employeeRoles}</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <Users className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filter Section */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex flex-col md:flex-row gap-4 flex-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rol adı və ya təsviri axtarın..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Bütün Statuslar</option>
-              <option value="Aktiv">Aktiv</option>
-              <option value="Passiv">Passiv</option>
-              <option value="Gözləyir">Gözləyir</option>
-            </select>
-
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Bütün Tiplər</option>
-              <option value="admin">Admin</option>
-              <option value="employee">Əməkdaş</option>
-            </select>
-          </div>
-
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Yeni Rol</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Roles Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rol
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tip
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  İstifadəçi Sayı
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  İcazə Sayı
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Son Yenilənmə
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Əməliyyatlar
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {currentRoles.map((role) => {
-                const IconComponent = getIconComponent(role.icon);
-                return (
+        {/* Roles Table */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rol Adı
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Təsvir
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rol Tipi
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    İcazələr
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    İstifadəçi Sayı
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Əməliyyatlar
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {currentRoles.map((role) => (
                   <tr key={role.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className={`p-2 rounded-lg ${role.color} mr-3`}>
-                          <IconComponent className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{role.name}</div>
-                          <div className="text-sm text-gray-500">{role.description}</div>
-                        </div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {role.name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-xs truncate">
+                        {role.description || "Təsvir yoxdur"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(role.type)}`}>
-                        {role.type === 'admin' ? 'Admin' : 'Əməkdaş'}
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleTypeColor(
+                          role.role_type
+                        )}`}
+                      >
+                        {getRoleTypeText(role.role_type)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {role.userCount} istifadəçi
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {role.permissions.length} icazə
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {role.permissions?.slice(0, 3).map((permission) => (
+                          <span
+                            key={permission}
+                            className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full"
+                          >
+                            {getPermissionText(permission)}
+                          </span>
+                        ))}
+                        {role.permissions?.length > 3 && (
+                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                            +{role.permissions.length - 3} daha
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(role.status)}`}>
-                        {role.status}
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          role.status
+                        )}`}
+                      >
+                        {getStatusText(role.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {role.updatedAt}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {role.user_number || 0} istifadəçi
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
                         <button
                           onClick={() => openViewModal(role)}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title="Bax"
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => openEditModal(role)}
-                          className="text-green-600 hover:text-green-900 p-1"
-                          title="Redaktə Et"
+                          className="text-green-600 hover:text-green-900 transition-colors"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => openDeleteModal(role)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Sil"
+                          className="text-red-600 hover:text-red-900 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white px-6 py-3 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Göstərilir {indexOfFirstRole + 1}-{Math.min(indexOfLastRole, filteredRoles.length)} / {filteredRoles.length} nəticə
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={goToFirstPage}
-                  disabled={currentPage === 1}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronsLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={goToPreviousPage}
-                  disabled={currentPage === 1}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                
-                {getPageNumbers().map((pageNumber, index) => (
-                  <button
-                    key={index}
-                    onClick={() => typeof pageNumber === 'number' && goToPage(pageNumber)}
-                    disabled={pageNumber === '...'}
-                    className={`px-3 py-1 text-sm rounded ${
-                      pageNumber === currentPage
-                        ? 'bg-blue-600 text-white'
-                        : pageNumber === '...'
-                        ? 'text-gray-400 cursor-default'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {pageNumber}
-                  </button>
                 ))}
-                
-                <button
-                  onClick={goToNextPage}
-                  disabled={currentPage === totalPages}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={goToLastPage}
-                  disabled={currentPage === totalPages}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronsRight className="w-4 h-4" />
-                </button>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="bg-white px-6 py-3 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  {indexOfFirstRole + 1}-
+                  {Math.min(indexOfLastRole, filteredRoles.length)} /{" "}
+                  {filteredRoles.length} rol
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={goToFirstPage}
+                    disabled={currentPage === 1}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={goToPreviousPage}
+                    disabled={currentPage === 1}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {getPageNumbers().map((pageNumber, index) => (
+                    <button
+                      key={index}
+                      onClick={() =>
+                        typeof pageNumber === "number" && goToPage(pageNumber)
+                      }
+                      disabled={pageNumber === "..."}
+                      className={`px-3 py-1 text-sm rounded-lg ${
+                        pageNumber === currentPage
+                          ? "bg-blue-600 text-white"
+                          : pageNumber === "..."
+                          ? "text-gray-400 cursor-default"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage === totalPages}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={goToLastPage}
+                    disabled={currentPage === totalPages}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Add Role Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Yeni Rol Əlavə Et</h3>
+              <h3 className="text-xl font-semibold text-gray-800">
+                Yeni Rol Əlavə Et
+              </h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rol Adı *
+                  </label>
                   <input
                     type="text"
                     value={newRole.name}
-                    onChange={(e) => setNewRole({...newRole, name: e.target.value})}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Rol adını daxil edin"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol Tipi</label>
-                  <select
-                    value={newRole.type}
-                    onChange={(e) => setNewRole({...newRole, type: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {roleTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={newRole.status}
-                    onChange={(e) => setNewRole({...newRole, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
-                    <option value="Gözləyir">Gözləyir</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rəng</label>
-                  <select
-                    value={newRole.color}
-                    onChange={(e) => setNewRole({...newRole, color: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {roleColors.map(color => (
-                      <option key={color.id} value={color.id}>{color.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İkon</label>
-                  <select
-                    value={newRole.icon}
-                    onChange={(e) => setNewRole({...newRole, icon: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {roleIcons.map(icon => (
-                      <option key={icon.id} value={icon.id}>{icon.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Təsvir
+                  </label>
                   <textarea
-                    value={newRole.description}
-                    onChange={(e) => setNewRole({...newRole, description: e.target.value})}
-                    rows="3"
+                    value={newRole.description || ""}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, description: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="3"
                     placeholder="Rol haqqında təsvir"
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İcazələr</label>
-                  <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3">
-                    {permissions.map((permission) => (
-                      <label key={permission.id} className="flex items-start space-x-3 py-2 border-b border-gray-100 last:border-b-0">
-                        <input
-                          type="checkbox"
-                          checked={newRole.permissions.includes(permission.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewRole({
-                                ...newRole,
-                                permissions: [...newRole.permissions, permission.id]
-                              });
-                            } else {
-                              setNewRole({
-                                ...newRole,
-                                permissions: newRole.permissions.filter(id => id !== permission.id)
-                              });
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rol Tipi *
+                  </label>
+                  <select
+                    value={newRole.role_type}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, role_type: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Rol tipi seçin</option>
+                    <option value="admin">Admin</option>
+                    <option value="employee">Əməkdaş</option>
+                    <option value="courier">Kuryer</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status *
+                  </label>
+                  <select
+                    value={newRole.status}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, status: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="active">Aktiv</option>
+                    <option value="passiv">Passiv</option>
+                    <option value="deactive">Qeyri-aktiv</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    İcazələr *
+                  </label>
+                  <div className="border border-gray-300 rounded-lg p-4">
+                    <div className="flex gap-2 mb-4">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllPermissions}
+                        className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        Hamısını Seç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAllPermissions}
+                        className="px-3 py-1 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        Hamısını Təmizlə
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(PERMISSION_TYPES).map(([key, value]) => (
+                        <label
+                          key={key}
+                          className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={newRole.permissions.includes(value)}
+                            onChange={(e) =>
+                              handlePermissionChange(value, e.target.checked)
                             }
-                          }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">{permission.name}</div>
-                          <div className="text-xs text-gray-500">{permission.description}</div>
-                        </div>
-                      </label>
-                    ))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {getPermissionText(value)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowAddModal(false)}
@@ -766,10 +851,15 @@ const Roles = () => {
               </button>
               <button
                 onClick={handleAddRole}
-                disabled={!newRole.name || !newRole.description}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={
+                  !newRole.name ||
+                  !newRole.role_type ||
+                  newRole.permissions.length === 0 ||
+                  isCreating
+                }
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Əlavə Et
+                {isCreating ? "Əlavə edilir..." : "Əlavə Et"}
               </button>
             </div>
           </div>
@@ -777,127 +867,134 @@ const Roles = () => {
       )}
 
       {/* Edit Role Modal */}
-      {showEditModal && selectedRole && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Rolu Redaktə Et</h3>
+              <h3 className="text-xl font-semibold text-gray-800">
+                Rol Redaktə Et
+              </h3>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rol Adı *
+                  </label>
                   <input
                     type="text"
                     value={newRole.name}
-                    onChange={(e) => setNewRole({...newRole, name: e.target.value})}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Rol adını daxil edin"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol Tipi</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Təsvir
+                  </label>
+                  <textarea
+                    value={newRole.description || ""}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, description: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="3"
+                    placeholder="Rol haqqında təsvir"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rol Tipi *
+                  </label>
                   <select
-                    value={newRole.type}
-                    onChange={(e) => setNewRole({...newRole, type: e.target.value})}
+                    value={newRole.role_type}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, role_type: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    {roleTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
+                    <option value="">Rol tipi seçin</option>
+                    <option value="admin">Admin</option>
+                    <option value="employee">Əməkdaş</option>
+                    <option value="courier">Kuryer</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status *
+                  </label>
                   <select
                     value={newRole.status}
-                    onChange={(e) => setNewRole({...newRole, status: e.target.value})}
+                    onChange={(e) =>
+                      setNewRole({ ...newRole, status: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
-                    <option value="Gözləyir">Gözləyir</option>
+                    <option value="active">Aktiv</option>
+                    <option value="passiv">Passiv</option>
+                    <option value="deactive">Qeyri-aktiv</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rəng</label>
-                  <select
-                    value={newRole.color}
-                    onChange={(e) => setNewRole({...newRole, color: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {roleColors.map(color => (
-                      <option key={color.id} value={color.id}>{color.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İkon</label>
-                  <select
-                    value={newRole.icon}
-                    onChange={(e) => setNewRole({...newRole, icon: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {roleIcons.map(icon => (
-                      <option key={icon.id} value={icon.id}>{icon.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
-                  <textarea
-                    value={newRole.description}
-                    onChange={(e) => setNewRole({...newRole, description: e.target.value})}
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İcazələr</label>
-                  <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3">
-                    {permissions.map((permission) => (
-                      <label key={permission.id} className="flex items-start space-x-3 py-2 border-b border-gray-100 last:border-b-0">
-                        <input
-                          type="checkbox"
-                          checked={newRole.permissions.includes(permission.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewRole({
-                                ...newRole,
-                                permissions: [...newRole.permissions, permission.id]
-                              });
-                            } else {
-                              setNewRole({
-                                ...newRole,
-                                permissions: newRole.permissions.filter(id => id !== permission.id)
-                              });
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    İcazələr *
+                  </label>
+                  <div className="border border-gray-300 rounded-lg p-4">
+                    <div className="flex gap-2 mb-4">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllPermissions}
+                        className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        Hamısını Seç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearAllPermissions}
+                        className="px-3 py-1 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        Hamısını Təmizlə
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(PERMISSION_TYPES).map(([key, value]) => (
+                        <label
+                          key={key}
+                          className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={newRole.permissions.includes(value)}
+                            onChange={(e) =>
+                              handlePermissionChange(value, e.target.checked)
                             }
-                          }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">{permission.name}</div>
-                          <div className="text-xs text-gray-500">{permission.description}</div>
-                        </div>
-                      </label>
-                    ))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {getPermissionText(value)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowEditModal(false)}
@@ -907,10 +1004,15 @@ const Roles = () => {
               </button>
               <button
                 onClick={handleEditRole}
-                disabled={!newRole.name || !newRole.description}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={
+                  !newRole.name ||
+                  !newRole.role_type ||
+                  newRole.permissions.length === 0 ||
+                  isUpdating
+                }
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Yenilə
+                {isUpdating ? "Yenilənir..." : "Yenilə"}
               </button>
             </div>
           </div>
@@ -918,175 +1020,162 @@ const Roles = () => {
       )}
 
       {/* Delete Role Modal */}
-      {showDeleteModal && selectedRole && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="p-3 bg-red-100 rounded-lg mr-4">
-                  <Trash2 className="w-6 h-6 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Rolu Sil</h3>
-                  <p className="text-sm text-gray-600">Bu əməliyyat geri alına bilməz</p>
-                </div>
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-800">Rol Sil</h3>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-600" />
               </div>
-              
-              <p className="text-gray-700 mb-6">
-                <strong>{selectedRole.name}</strong> rolunu silmək istədiyinizə əminsiniz? 
-                Bu rol {selectedRole.userCount} istifadəçi tərəfindən istifadə olunur.
+              <h4 className="text-lg font-medium text-gray-800 mb-2">
+                Rol silmək istədiyinizə əminsiniz?
+              </h4>
+              <p className="text-gray-600">
+                <strong>{selectedRole?.name}</strong>
               </p>
-              
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Ləğv Et
-                </button>
-                <button
-                  onClick={handleDeleteRole}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Sil
-                </button>
-              </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Bu əməliyyat geri alına bilməz.
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Ləğv Et
+              </button>
+              <button
+                onClick={handleDeleteRole}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? "Silinir..." : "Sil"}
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* View Role Modal */}
-      {showViewModal && selectedRole && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+      {showViewModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Rol Məlumatları</h3>
+              <h3 className="text-xl font-semibold text-gray-800">
+                Rol Detalları
+              </h3>
               <button
                 onClick={() => setShowViewModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Basic Information */}
+              {selectedRole && (
                 <div className="space-y-6">
-                  <div className="bg-gray-50 p-6 rounded-xl">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  {/* Basic Information */}
+                  <div className="bg-gray-50 p-4 rounded-xl">
+                    <h5 className="font-medium text-gray-800 mb-3 flex items-center">
                       <Shield className="w-5 h-5 mr-2 text-blue-600" />
                       Əsas Məlumatlar
-                    </h4>
-                    <div className="space-y-4">
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">Rol Adı</label>
-                        <p className="text-lg font-semibold text-gray-900">{selectedRole.name}</p>
+                        <p className="text-sm text-gray-600">Rol Adı</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedRole.name}
+                        </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">Təsvir</label>
-                        <p className="text-gray-700">{selectedRole.description}</p>
+                        <p className="text-sm text-gray-600">Rol Tipi</p>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleTypeColor(
+                            selectedRole.role_type
+                          )}`}
+                        >
+                          {getRoleTypeText(selectedRole.role_type)}
+                        </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">Tip</label>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(selectedRole.type)}`}>
-                            {selectedRole.type === 'admin' ? 'Admin' : 'Əməkdaş'}
-                          </span>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">Status</label>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedRole.status)}`}>
-                            {selectedRole.status}
-                          </span>
-                        </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Status</p>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                            selectedRole.status
+                          )}`}
+                        >
+                          {getStatusText(selectedRole.status)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">İstifadəçi Sayı</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedRole.user_number || 0} istifadəçi
+                        </p>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-gray-50 p-6 rounded-xl">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <Users className="w-5 h-5 mr-2 text-green-600" />
-                      İstifadəçi Statistikaları
-                    </h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-white rounded-lg">
-                        <p className="text-2xl font-bold text-blue-600">{selectedRole.userCount}</p>
-                        <p className="text-sm text-gray-600">İstifadəçi</p>
+                    {selectedRole.description && (
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-600">Təsvir</p>
+                        <p className="text-gray-700">
+                          {selectedRole.description}
+                        </p>
                       </div>
-                      <div className="text-center p-4 bg-white rounded-lg">
-                        <p className="text-2xl font-bold text-green-600">{selectedRole.permissions.length}</p>
-                        <p className="text-sm text-gray-600">İcazə</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Permissions */}
-                <div className="bg-gray-50 p-6 rounded-xl">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <Lock className="w-5 h-5 mr-2 text-green-600" />
-                    İcazələr
-                  </h4>
-                  <div className="space-y-3">
-                    {selectedRole.permissions && selectedRole.permissions.length > 0 ? (
-                      selectedRole.permissions.map((permissionId) => {
-                        const permission = permissions.find(p => p.id === permissionId);
-                        return permission ? (
-                          <div key={permissionId} className="bg-white p-4 rounded-lg border border-gray-200">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Lock className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-medium text-gray-900">{permission.name}</span>
-                            </div>
-                            <p className="text-xs text-gray-600">{permission.description}</p>
-                          </div>
-                        ) : null;
-                      })
-                    ) : (
-                      <p className="text-gray-500 italic">Hazırda heç bir icazə təyin edilməyib</p>
                     )}
                   </div>
-                </div>
-              </div>
 
-              {/* Additional Information */}
-              <div className="mt-8 bg-gray-50 p-6 rounded-xl">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4">Əlavə Məlumatlar</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Yaradılma Tarixi</label>
-                    <p className="text-gray-900">{selectedRole.createdAt}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Son Yenilənmə</label>
-                    <p className="text-gray-900">{selectedRole.updatedAt}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Rol ID</label>
-                    <p className="text-gray-900">#{selectedRole.id}</p>
+                  {/* Permissions */}
+                  <div className="bg-gray-50 p-4 rounded-xl">
+                    <h5 className="font-medium text-gray-800 mb-3 flex items-center">
+                      <Check className="w-5 h-5 mr-2 text-green-600" />
+                      İcazələr
+                    </h5>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedRole.permissions?.map((permission) => (
+                        <span
+                          key={permission}
+                          className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full"
+                        >
+                          {getPermissionText(permission)}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
-            
-            <div className="flex space-x-3 p-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Bağla
-              </button>
-              <button
-                onClick={() => {
-                  setShowViewModal(false);
-                  openEditModal(selectedRole);
-                }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Redaktə Et
-              </button>
-            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50">
+          <div
+            className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
+              toastType === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            {toastType === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span>{toastMessage}</span>
           </div>
         </div>
       )}
@@ -1094,4 +1183,4 @@ const Roles = () => {
   );
 };
 
-export default Roles; 
+export default Roles;

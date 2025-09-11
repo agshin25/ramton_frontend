@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -24,71 +24,38 @@ import {
   ChevronDown,
   ChevronUp,
   Crown,
-  Star
-} from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { employees } from './Admin';
-import { products } from './Products';
-import { useNavigate } from 'react-router-dom';
+  Star,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import { useNavigate } from "react-router-dom";
+import {
+  useGetOrdersQuery,
+  useCreateOrderMutation,
+  useUpdateOrderMutation,
+  useDeleteOrderMutation,
+} from "../services/ordersApi";
+import { useGetCustomersQuery } from "../services/customersApi";
+import { useGetProductsQuery } from "../services/productsApi";
+import { useGetZonesQuery } from "../services/zonesApi";
+import { useGetAdminsQuery } from "../services/adminsApi";
+import { orderStatus } from "../enums/orderStaus";
 
-// Sample customers data for order creation
-const customers = [
-  {
-    id: 1,
-    name: 'Əli Məmmədov',
-    email: 'ali@example.com',
-    phone: '+994 50 123 45 67',
-    address: 'Bakı şəhəri, Nərimanov rayonu, Atatürk prospekti 123',
-    city: 'Bakı',
-    status: 'Aktiv'
-  },
-  {
-    id: 2,
-    name: 'Aysu Hüseynova',
-    email: 'aysu@example.com',
-    phone: '+994 55 987 65 43',
-    address: 'Sumqayıt şəhəri, Mərkəz rayonu, Azərbaycan küçəsi 45',
-    city: 'Sumqayıt',
-    status: 'Aktiv'
-  },
-  {
-    id: 3,
-    name: 'Məhəmməd Əliyev',
-    email: 'məhəmməd@example.com',
-    phone: '+994 70 456 78 90',
-    address: 'Gəncə şəhəri, Kəpəz rayonu, Heydər Əliyev prospekti 78',
-    city: 'Gəncə',
-    status: 'Aktiv'
-  },
-  {
-    id: 4,
-    name: 'Səbinə Əliyeva',
-    email: 'səbinə@example.com',
-    phone: '+994 51 789 12 34',
-    address: 'Mingəçevir şəhəri, Mərkəz rayonu, Azərbaycan küçəsi 12',
-    city: 'Mingəçevir',
-    status: 'Aktiv'
-  },
-  {
-    id: 5,
-    name: 'Rəşad Əhmədov',
-    email: 'rəşad@example.com',
-    phone: '+994 60 321 54 67',
-    address: 'Şirvan şəhəri, Mərkəz rayonu, Heydər Əliyev küçəsi 89',
-    city: 'Şirvan',
-    status: 'Aktiv'
-  }
-];
+const statusMap = orderStatus;
+
+const discountTypeMap = {
+  fixed: "Sabit",
+  percentage: "Faiz",
+};
 
 const Orders = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [employeeFilter, setEmployeeFilter] = useState('all');
-  const [productFilter, setProductFilter] = useState('all');
-  const [zoneFilter, setZoneFilter] = useState('all');
-  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState('all');
-  const [vipFilter, setVipFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [employeeFilter, setEmployeeFilter] = useState("all");
+  const [productFilter, setProductFilter] = useState("all");
+  const [zoneFilter, setZoneFilter] = useState("all");
+  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState("all");
+  const [vipFilter, setVipFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(6);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -98,304 +65,235 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showExportNotification, setShowExportNotification] = useState(false);
   const [showCourierAssignment, setShowCourierAssignment] = useState(false);
-  const [assignedCourier, setAssignedCourier] = useState('');
-  const [showStatistics, setShowStatistics] = useState(window.innerWidth >= 768);
-  // Handle window resize to update statistics visibility
+  const [assignedCourier, setAssignedCourier] = useState("");
+  const [showStatistics, setShowStatistics] = useState(
+    window.innerWidth >= 768
+  );
+  const { data: ordersData, isLoading: ordersLoading, isError: ordersError, } = useGetOrdersQuery();
+  const { data: customersData, isLoading: customersLoading } =
+    useGetCustomersQuery();
+  const { data: productsData, isLoading: productsLoading } =
+    useGetProductsQuery();
+  const { data: zonesData, isLoading: zonesLoading } = useGetZonesQuery();
+  const { data: adminsData, isLoading: adminsLoading } = useGetAdminsQuery();
+
+  // Mutations
+  const [createOrder, { isLoading: isCreating }] = useCreateOrderMutation();
+  const [updateOrder, { isLoading: isUpdating }] = useUpdateOrderMutation();
+  const [deleteOrder, { isLoading: isDeleting }] = useDeleteOrderMutation();
+
+  // Extract data from API responses
+  const orders = ordersData?.data || [];
+  const customers = customersData?.data || [];
+  const products = productsData?.data || [];
+  const zones = zonesData?.data || [];
+
+  // Filter admins to get only employees (non-admin roles, excluding couriers)
+  const employees =
+    adminsData?.data?.filter(
+      (admin) =>
+        admin.roles?.some((role) => role.role_type !== "admin") &&
+        admin.profile_type !== "courier"
+    ) || [];
+
+  // Filter admins to get only couriers (role_type === "employee" and profile_type === "courier")
+  const couriers =
+    adminsData?.data?.filter(
+      (admin) =>
+        admin.roles?.some((role) => role.role_type === "employee") &&
+        admin.profile_type === "courier"
+    ) || [];
+
   useEffect(() => {
     const handleResize = () => {
       const isDesktop = window.innerWidth >= 768;
       setShowStatistics(isDesktop);
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const [newOrder, setNewOrder] = useState({
-    customer: '',
-    employee: '',
-    product: '',
+    customer_id: "",
+    responsible_employee_id: "",
+    product_id: "",
     quantity: 1,
-    price: 0,
-    totalPrice: 0,
-    discountedPrice: 0,
+    discount_type: "fixed",
     discount: 0,
-    status: 'Yeni',
-    courier: 'Rəşad Əhmədov',
-    zone: 'Bakı Mərkəz',
-    deliveryMethod: 'Kuryer'
+    status: orderStatus.NEW,
+    delivery_type: "courier",
+    courier_id: "",
+    zone_id: "",
+    price: 0, // Backend expects 'price'
+    discounted_price: 0, // Backend expects 'discounted_price'
   });
 
-  const orders = [
-    {
-      id: '#12345',
-      customer: 'Əli Məmmədov',
-      employee: 'Əli Məmmədov',
-      product: 'iPhone 15 Pro',
-      quantity: 2,
-      price: 150.00,
-      status: 'Yeni',
-      date: '2024-01-15',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'iPhone 15 Pro x2 ədəd - 150₼'
-    },
-    {
-      id: '#12346',
-      customer: 'Aysu Hüseynova',
-      employee: 'Aysu Hüseynova',
-      product: 'MacBook Air',
-      quantity: 1,
-      price: 75.50,
-      status: 'Gözləmədə',
-      date: '2024-01-16',
-      courier: 'Elşən Məmmədov',
-      zone: 'Sumqayıt',
-      deliveryMethod: 'Azerpoct Filialı',
-      whatsappMessage: 'MacBook Air x1 ədəd - 75.50₼'
-    },
-    {
-      id: '#12347',
-      customer: 'Məhəmməd Əliyev',
-      employee: 'Məhəmməd Əliyev',
-      product: 'Apple Watch',
-      quantity: 3,
-      price: 200.00,
-      status: 'Yönləndirilib',
-      date: '2024-01-17',
-      courier: 'Orxan Əliyev',
-      zone: 'Gəncə',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'Apple Watch x3 ədəd - 200₼'
-    },
-    {
-      id: '#12348',
-      customer: 'Səbinə Əliyeva',
-      employee: 'Səbinə Əliyeva',
-      product: 'iPad Pro',
-      quantity: 1,
-      price: 120.00,
-      status: 'Tamamlandı',
-      date: '2024-01-18',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Azerpoct Filialı',
-      whatsappMessage: 'iPad Pro x1 ədəd - 120₼'
-    },
-    {
-      id: '#12349',
-      customer: 'Rəşad Əhmədov',
-      employee: 'Əli Məmmədov',
-      product: 'AirPods Pro',
-      quantity: 5,
-      price: 85.00,
-      status: 'Ləğv',
-      date: '2024-01-19',
-      courier: 'Təyin edilməyib',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'AirPods Pro x5 ədəd - 85₼ (LƏĞV)'
-    },
-    {
-      id: '#12350',
-      customer: 'Əli Məmmədov',
-      employee: 'Nigar Əhmədova',
-      product: 'Samsung Galaxy S24',
-      quantity: 2,
-      price: 180.00,
-      status: 'Yeni',
-      date: '2024-01-20',
-      courier: 'Elşən Məmmədov',
-      zone: 'Sumqayıt',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'Samsung Galaxy S24 x2 ədəd - 180₼'
-    },
-    {
-      id: '#12357',
-      customer: 'Əli Məmmədov',
-      employee: 'Əli Məmmədov',
-      product: 'iPhone 15',
-      quantity: 1,
-      price: 120.00,
-      status: 'Tamamlandı',
-      date: '2024-01-27',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'iPhone 15 x1 ədəd - 120₼'
-    },
-    {
-      id: '#12358',
-      customer: 'Əli Məmmədov',
-      employee: 'Aysu Hüseynova',
-      product: 'MacBook Pro',
-      quantity: 1,
-      price: 250.00,
-      status: 'Gözləmədə',
-      date: '2024-01-28',
-      courier: 'Elşən Məmmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Azerpoct Filialı',
-      whatsappMessage: 'MacBook Pro x1 ədəd - 250₼'
-    },
-    {
-      id: '#12351',
-      customer: 'Aysu Hüseynova',
-      employee: 'Rəşad Hüseynov',
-      product: 'Dell XPS 13',
-      quantity: 1,
-      price: 95.00,
-      status: 'Gözləmədə',
-      date: '2024-01-21',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Azerpoct Filialı',
-      whatsappMessage: 'Dell XPS 13 x1 ədəd - 95₼'
-    },
-    {
-      id: '#12352',
-      customer: 'Məhəmməd Əliyev',
-      employee: 'Leyla Məmmədova',
-      product: 'Sony WH-1000XM5',
-      quantity: 3,
-      price: 110.00,
-      status: 'Yönləndirilib',
-      date: '2024-01-22',
-      courier: 'Orxan Əliyev',
-      zone: 'Gəncə',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'Sony WH-1000XM5 x3 ədəd - 110₼'
-    },
-    {
-      id: '#12353',
-      employee: 'Orxan Əliyev',
-      product: 'Microsoft Surface Pro',
-      quantity: 1,
-      price: 160.00,
-      status: 'Tamamlandı',
-      date: '2024-01-23',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Azerpoct Filialı',
-      whatsappMessage: 'Microsoft Surface Pro x1 ədəd - 160₼'
-    },
-    {
-      id: '#12354',
-      employee: 'Aynur Hüseynova',
-      product: 'Google Pixel 8',
-      quantity: 2,
-      price: 140.00,
-      status: 'Yeni',
-      date: '2024-01-24',
-      courier: 'Elşən Məmmədov',
-      zone: 'Sumqayıt',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'Google Pixel 8 x2 ədəd - 140₼'
-    },
-    {
-      id: '#12355',
-      employee: 'Elşən Məmmədov',
-      product: 'Lenovo ThinkPad X1',
-      quantity: 1,
-      price: 125.00,
-      status: 'Gözləmədə',
-      date: '2024-01-25',
-      courier: 'Orxan Əliyev',
-      zone: 'Gəncə',
-      deliveryMethod: 'Azerpoct Filialı',
-      whatsappMessage: 'Lenovo ThinkPad X1 x1 ədəd - 125₼'
-    },
-    {
-      id: '#12356',
-      employee: 'Günel Əliyeva',
-      product: 'Bose QuietComfort 45',
-      quantity: 4,
-      price: 90.00,
-      status: 'Yönləndirilib',
-      date: '2024-01-26',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'Bose QuietComfort 45 x4 ədəd - 90₼'
-    },
-    {
-      id: '#12359',
-      customer: 'Aysu Hüseynova',
-      employee: 'Rəşad Hüseynov',
-      product: 'Sony WH-1000XM4',
-      quantity: 2,
-      price: 95.00,
-      status: 'Tamamlandı',
-      date: '2024-01-29',
-      courier: 'Orxan Əliyev',
-      zone: 'Sumqayıt',
-      deliveryMethod: 'Kuryer',
-      whatsappMessage: 'Sony WH-1000XM4 x2 ədəd - 95₼'
-    },
-    {
-      id: '#12360',
-      customer: 'Aysu Hüseynova',
-      employee: 'Leyla Məmmədova',
-      product: 'iPad Air',
-      quantity: 1,
-      price: 110.00,
-      status: 'Yeni',
-      date: '2024-01-30',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Azerpoct Filialı',
-      whatsappMessage: 'iPad Air x1 ədəd - 110₼'
+  useEffect(() => {
+    if (products.length > 0 && newOrder.product_id) {
+      const prices = calculatePrices(
+        newOrder.product_id,
+        newOrder.quantity,
+        newOrder.discount,
+        newOrder.discount_type
+      );
+      setNewOrder((prev) => ({ ...prev, ...prices }));
     }
-  ];
+  }, [
+    products,
+    newOrder.product_id,
+    newOrder.quantity,
+    newOrder.discount,
+    newOrder.discount_type,
+  ]);
+
+  // Helper functions to transform API data
+  const transformOrder = (order) => {
+    // Find related data from the arrays
+    const customer = customers.find((c) => c.id === order.customer_id);
+    const employee = employees.find(
+      (e) => e.id === order.responsible_employee_id
+    );
+    const product = products.find((p) => p.id === order.product_id);
+    const courier = couriers.find((c) => c.id === order.courier_id);
+    const zone = zones.find((z) => z.id === order.zone_id);
+
+    // Calculate prices
+    const unitPrice = parseFloat(product?.price || 0);
+    const totalPrice = unitPrice * order.quantity;
+    const discountAmount = parseFloat(order.discount || 0);
+    const discountedPrice =
+      order.discount_type === "percent"
+        ? totalPrice * (1 - discountAmount / 100)
+        : totalPrice - discountAmount;
+
+    return {
+      id: `#${order.id}`,
+      customer: customer
+        ? `${customer.first_name} ${customer.last_name}`
+        : null,
+      employee: employee
+        ? `${employee.first_name} ${employee.last_name}`
+        : null,
+      product: product ? product.name : null,
+      quantity: order.quantity,
+      price: unitPrice,
+      totalPrice: totalPrice,
+      status: statusMap[order.status] || order.status,
+      date: order.created_at
+        ? new Date(order.created_at).toISOString().split("T")[0]
+        : null,
+      courier: courier
+        ? `${courier.first_name} ${courier.last_name}`
+        : "Təyin edilməyib",
+      zone: zone ? zone.name : null,
+      deliveryMethod: order.delivery_type, // Default delivery method
+      whatsappMessage: product
+        ? `${product.name} x${order.quantity} ədəd - ${discountedPrice.toFixed(
+            2
+          )}₼`
+        : "",
+      discount: discountAmount,
+      discount_type: order.discount_type,
+      discountedPrice: discountedPrice,
+      // API specific fields
+      customer_id: order.customer_id,
+      courier_id: order.courier_id,
+      responsible_employee_id: order.responsible_employee_id,
+      zone_id: order.zone_id,
+      product_id: order.product_id,
+    };
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Yeni': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Gözləmədə': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Yönləndirilib': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'Tamamlandı': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Ləğv': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case orderStatus.NEW:
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case orderStatus.WAITING:
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case orderStatus.REDIRECTED:
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case orderStatus.COMPLETED:
+        return "bg-green-100 text-green-800 border-green-200";
+      case orderStatus.CANCELLED:
+        return "bg-red-100 text-red-800 border-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Yeni': return <Clock className="w-4 h-4" />;
-      case 'Gözləmədə': return <Clock className="w-4 h-4" />;
-      case 'Yönləndirilib': return <Target className="w-4 h-4" />;
-      case 'Tamamlandı': return <CheckCircle className="w-4 h-4" />;
-      case 'Ləğv': return <AlertTriangle className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case orderStatus.NEW:
+        return <Clock className="w-4 h-4" />;
+      case orderStatus.WAITING:
+        return <Clock className="w-4 h-4" />;
+      case orderStatus.REDIRECTED:
+        return <Target className="w-4 h-4" />;
+      case orderStatus.COMPLETED:
+        return <CheckCircle className="w-4 h-4" />;
+      case orderStatus.CANCELLED:
+        return <AlertTriangle className="w-4 h-4" />;
+      default:
+        return <Clock className="w-4 h-4" />;
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.employee.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesEmployee = employeeFilter === 'all' || order.employee === employeeFilter;
-    const matchesProduct = productFilter === 'all' || order.product === productFilter;
-    const matchesZone = zoneFilter === 'all' || order.zone === zoneFilter;
-    const matchesDeliveryMethod = deliveryMethodFilter === 'all' || order.deliveryMethod === deliveryMethodFilter;
-    
+  // Loading state
+  const isLoading =
+    ordersLoading ||
+    customersLoading ||
+    productsLoading ||
+    zonesLoading ||
+    adminsLoading;
+
+  // Transform orders for display
+  const transformedOrders = orders.map(transformOrder);
+
+  const filteredOrders = transformedOrders.filter((order) => {
+    const matchesSearch =
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.product &&
+        order.product.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.employee &&
+        order.employee.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus =
+      statusFilter === "all" || order.status === statusFilter;
+    const matchesEmployee =
+      employeeFilter === "all" || order.employee === employeeFilter;
+    const matchesProduct =
+      productFilter === "all" || order.product === productFilter;
+    const matchesZone = zoneFilter === "all" || order.zone === zoneFilter;
+    const matchesDeliveryMethod =
+      deliveryMethodFilter === "all" ||
+      order.deliveryMethod === deliveryMethodFilter;
+
     // VIP filtering logic
     let matchesVip = true;
-    if (vipFilter === 'vip') {
+    if (vipFilter === "vip") {
       matchesVip = order.customer && getVIPInfo(order.customer);
-    } else if (vipFilter === 'non-vip') {
+    } else if (vipFilter === "non-vip") {
       matchesVip = !order.customer || !getVIPInfo(order.customer);
     }
-    
-    return matchesSearch && matchesStatus && matchesEmployee && matchesProduct && matchesZone && matchesDeliveryMethod && matchesVip;
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesEmployee &&
+      matchesProduct &&
+      matchesZone &&
+      matchesDeliveryMethod &&
+      matchesVip
+    );
   });
 
   // Səhifələmə hesablamaları
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const currentOrders = filteredOrders.slice(
+    indexOfFirstOrder,
+    indexOfLastOrder
+  );
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
 
   // Səhifə dəyişdirmə funksiyaları
@@ -427,7 +325,7 @@ const Orders = () => {
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
@@ -437,142 +335,127 @@ const Orders = () => {
         for (let i = 1; i <= 4; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       } else if (currentPage >= totalPages - 2) {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = totalPages - 3; i <= totalPages; i++) {
           pageNumbers.push(i);
         }
       } else {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = currentPage - 1; i <= currentPage + 1; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
   // Modal funksiyaları
-  const handleAddOrder = () => {
-    const newId = `#${Math.floor(Math.random() * 100000)}`;
-    const today = new Date().toISOString().split('T')[0];
-    const whatsappMessage = `${newOrder.product} x${newOrder.quantity} ədəd - ${newOrder.discountedPrice.toFixed(2)}₼ (Endirimli)`;
-    
-    const orderToAdd = {
-      id: newId,
-      customer: newOrder.customer,
-      employee: newOrder.employee,
-      product: newOrder.product,
-      quantity: newOrder.quantity,
-      price: parseFloat(newOrder.price),
-      totalPrice: newOrder.totalPrice,
-      discountedPrice: newOrder.discountedPrice,
-      discount: newOrder.discount,
-      status: newOrder.status,
-      date: today,
-      courier: newOrder.courier,
-      zone: newOrder.zone,
-      deliveryMethod: newOrder.deliveryMethod,
-      whatsappMessage: whatsappMessage
-    };
-    
-    // orders array-inə əlavə etmək üçün state update etmək lazımdır
-    // Bu real app-də backend ilə əlaqə olacaq
-    console.log('Yeni sifariş əlavə edildi:', orderToAdd);
-    
-    // Formu təmizlə
-    setNewOrder({
-      customer: '',
-      employee: '',
-      product: '',
-      quantity: 1,
-      price: 0,
-      totalPrice: 0,
-      discountedPrice: 0,
-      discount: 0,
-      status: 'Yeni',
-      courier: 'Rəşad Əhmədov',
-      zone: 'Bakı Mərkəz',
-      deliveryMethod: 'Kuryer'
-    });
-    setShowAddModal(false);
-  };
+  const handleAddOrder = async () => {
+    try {
+      await createOrder(newOrder).unwrap();
 
-  const handleEditOrder = () => {
-    if (selectedOrder) {
-      const updatedOrder = {
-        ...selectedOrder,
-        customer: newOrder.customer,
-        employee: newOrder.employee,
-        product: newOrder.product,
-        quantity: newOrder.quantity,
-        price: parseFloat(newOrder.price),
-        status: newOrder.status,
-        courier: newOrder.courier,
-        zone: newOrder.zone,
-        deliveryMethod: newOrder.deliveryMethod,
-        whatsappMessage: `${newOrder.product} x${newOrder.quantity} ədəd - ${newOrder.price}₼`
-      };
-      
-      // orders array-ini update etmək üçün state update etmək lazımdır
-      console.log('Sifariş yeniləndi:', updatedOrder);
-      
-      setShowEditModal(false);
-      setSelectedOrder(null);
+      // Formu təmizlə
+      setNewOrder({
+        customer_id: "",
+        responsible_employee_id: "",
+        product_id: "",
+        quantity: 1,
+        discount_type: "fixed",
+        discount: 0,
+        status: orderStatus.NEW,
+        delivery_type: "courier",
+        courier_id: "",
+        zone_id: "",
+        price: 0,
+        discounted_price: 0,
+      });
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Sifariş əlavə edilərkən xəta:", error);
     }
   };
 
-  const handleDeleteOrder = () => {
+  const handleEditOrder = async () => {
     if (selectedOrder) {
-      // orders array-indən silmək üçün state update etmək lazımdır
-      console.log('Sifariş silindi:', selectedOrder);
-      
-      setShowDeleteModal(false);
-      setSelectedOrder(null);
+      try {
+        const orderId = selectedOrder.id.replace("#", "");
+        await updateOrder({
+          id: orderId, // 👈 must be inside the object
+          ...newOrder, // 👈 spread all the fields here
+        }).unwrap();
+
+
+        setShowEditModal(false);
+        setSelectedOrder(null);
+      } catch (error) {
+        console.error("Sifariş yenilənərkən xəta:", error);
+      }
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (selectedOrder) {
+      try {
+        const orderId = selectedOrder.id.replace("#", "");
+        await deleteOrder(orderId).unwrap();
+
+        setShowDeleteModal(false);
+        setSelectedOrder(null);
+      } catch (error) {
+        console.error("Sifariş silinərkən xəta:", error);
+      }
     }
   };
 
   // Məhsul seçildikdə qiyməti hesablayan funksiya
-  const calculatePrices = (productName, quantity, discountAmount = 0) => {
-    const selectedProduct = products.find(p => p.name === productName);
+  const calculatePrices = (
+    productId,
+    quantity,
+    discountAmount = 0,
+    discountType = "fixed"
+  ) => {
+    const selectedProduct = products.find((p) => p.id === parseInt(productId));
     if (selectedProduct) {
-      const unitPrice = selectedProduct.price;
+      const unitPrice = parseFloat(selectedProduct.price);
       const totalPrice = unitPrice * quantity;
       const discount = parseFloat(discountAmount) || 0;
-      const discountedPrice = totalPrice - discount;
-      
+      const discountedPrice =
+        discountType === "percent"
+          ? totalPrice * (1 - discount / 100)
+          : totalPrice - discount;
+
       return {
-        price: unitPrice,
-        totalPrice: totalPrice,
+        price: unitPrice, // Backend expects 'price'
         discount: discount,
-        discountedPrice: discountedPrice
+        discounted_price: discountedPrice, // Backend expects 'discounted_price'
       };
     }
-    return { price: 0, totalPrice: 0, discount: 0, discountedPrice: 0 };
+    return { price: 0, discount: 0, discounted_price: 0 };
   };
 
   const openEditModal = (order) => {
     setSelectedOrder(order);
     setNewOrder({
-      customer: order.customer || '',
-      employee: order.employee,
-      product: order.product,
+      customer_id: order.customer_id || "",
+      responsible_employee_id: order.responsible_employee_id || "",
+      product_id: order.product_id || "",
       quantity: order.quantity,
-      price: order.price,
-      totalPrice: order.totalPrice || order.price * order.quantity,
-      discountedPrice: order.discountedPrice || (order.price * order.quantity * 0.9),
-      discount: order.discount || (order.price * order.quantity * 0.1),
+      discount_type: order.discount_type || "fixed",
+      discount: order.discount || 0,
       status: order.status,
-      courier: order.courier,
-      zone: order.zone || 'Bakı Mərkəz',
-      deliveryMethod: order.deliveryMethod || 'Kuryer'
+      delivery_type: order.delivery_type || "courier",
+      courier_id: order.courier_id || "",
+      zone_id: order.zone_id || "",
+      price: order.price || 0,
+      discounted_price: order.discounted_price || 0,
     });
     setShowEditModal(true);
   };
@@ -594,41 +477,48 @@ const Orders = () => {
       const updatedOrder = {
         ...selectedOrder,
         courier: assignedCourier,
-        status: 'Yönləndirilib'
+        status: "Yönləndirilib",
       };
-      
+
       // In a real app, this would update the backend
-      console.log('Kuryer təyin edildi:', updatedOrder);
-      
+      console.log("Kuryer təyin edildi:", updatedOrder);
+
       // Close modals
       setShowCourierAssignment(false);
       setShowViewModal(false);
       setSelectedOrder(null);
-      setAssignedCourier('');
+      setAssignedCourier("");
     }
   };
 
   // Excel Export Function
   const exportToExcel = () => {
     // Check if we're exporting filtered data or all data
-    const isFiltered = searchTerm || statusFilter !== 'all' || employeeFilter !== 'all' || productFilter !== 'all' || deliveryMethodFilter !== 'all';
-    
+    const isFiltered =
+      searchTerm ||
+      statusFilter !== "all" ||
+      employeeFilter !== "all" ||
+      productFilter !== "all" ||
+      deliveryMethodFilter !== "all";
+
     // Prepare data for export
-    const exportData = filteredOrders.map(order => ({
-      'Sifariş ID': order.id,
-      'Əməkdaş': order.employee,
-      'Məhsul': order.product,
-      'Miqdar': order.quantity,
-      'Vahid Qiymət (₼)': order.price,
-      'Ümumi Qiymət (₼)': (order.price * order.quantity).toFixed(2),
-      'Endirimli Qiymət (₼)': order.discountedPrice ? order.discountedPrice.toFixed(2) : (order.price * order.quantity).toFixed(2),
-      'Endirim (₼)': order.discount ? order.discount.toFixed(2) : '0.00',
-      'Status': order.status,
-      'Tarix': order.date,
-      'Zona': order.zone,
-      'Kuryer': order.courier,
-      'Çatdırılma Üsulu': order.deliveryMethod,
-      'WhatsApp Mesajı': order.whatsappMessage
+    const exportData = filteredOrders.map((order) => ({
+      "Sifariş ID": order.id,
+      Əməkdaş: order.employee,
+      Məhsul: order.product,
+      Miqdar: order.quantity,
+      "Vahid Qiymət (₼)": order.price,
+      "Ümumi Qiymət (₼)": (order.price * order.quantity).toFixed(2),
+      "Endirimli Qiymət (₼)": order.discountedPrice
+        ? order.discountedPrice.toFixed(2)
+        : (order.price * order.quantity).toFixed(2),
+      "Endirim (₼)": order.discount ? (order.discount * order.quantity).toFixed(2) : "0.00",
+      Status: order.status,
+      Tarix: order.date,
+      Zona: order.zone,
+      Kuryer: order.courier,
+      "Çatdırılma Üsulu": order.deliveryMethod,
+      "WhatsApp Mesajı": order.whatsappMessage,
     }));
 
     // Create workbook
@@ -636,13 +526,13 @@ const Orders = () => {
 
     // Add main data worksheet
     const worksheet = XLSX.utils.json_to_sheet(exportData);
-    
+
     // Set column widths
     const columnWidths = [
       { wch: 12 }, // Sifariş ID
       { wch: 20 }, // Əməkdaş
       { wch: 25 }, // Məhsul
-      { wch: 8 },  // Miqdar
+      { wch: 8 }, // Miqdar
       { wch: 15 }, // Vahid Qiymət
       { wch: 15 }, // Ümumi Qiymət
       { wch: 15 }, // Endirimli Qiymət
@@ -652,20 +542,20 @@ const Orders = () => {
       { wch: 12 }, // Zona
       { wch: 15 }, // Kuryer
       { wch: 18 }, // Çatdırılma Üsulu
-      { wch: 50 }  // WhatsApp Mesajı
+      { wch: 50 }, // WhatsApp Mesajı
     ];
-    worksheet['!cols'] = columnWidths;
+    worksheet["!cols"] = columnWidths;
 
     // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sifarişlər');
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sifarişlər");
 
     // Generate filename with current date
-    const today = new Date().toISOString().split('T')[0];
-    const fileName = `Sifarişlər_${today}${isFiltered ? '_Filtrli' : ''}.xlsx`;
+    const today = new Date().toISOString().split("T")[0];
+    const fileName = `Sifarişlər_${today}${isFiltered ? "_Filtrli" : ""}.xlsx`;
 
     // Save file
     XLSX.writeFile(workbook, fileName);
-    
+
     // Show success notification
     setShowExportNotification(true);
     setTimeout(() => setShowExportNotification(false), 3000);
@@ -674,14 +564,14 @@ const Orders = () => {
   // Function to identify VIP customers
   const getVIPCustomers = () => {
     const customerStats = {};
-    
-    orders.forEach(order => {
+
+    transformedOrders.forEach((order) => {
       if (order.customer) {
         if (!customerStats[order.customer]) {
           customerStats[order.customer] = {
             orderCount: 0,
             totalQuantity: 0,
-            totalSpent: 0
+            totalSpent: 0,
           };
         }
         customerStats[order.customer].orderCount++;
@@ -691,9 +581,13 @@ const Orders = () => {
     });
 
     // Define VIP criteria: 3+ orders OR 10+ total quantity OR 500+ total spent
-    const vipCustomers = Object.keys(customerStats).filter(customer => {
+    const vipCustomers = Object.keys(customerStats).filter((customer) => {
       const stats = customerStats[customer];
-      return stats.orderCount >= 3 || stats.totalQuantity >= 10 || stats.totalSpent >= 500;
+      return (
+        stats.orderCount >= 3 ||
+        stats.totalQuantity >= 10 ||
+        stats.totalSpent >= 500
+      );
     });
 
     return vipCustomers;
@@ -702,18 +596,18 @@ const Orders = () => {
   // Function to get VIP level and styling
   const getVIPInfo = (customerName) => {
     if (!customerName) return null;
-    
+
     const vipCustomers = getVIPCustomers();
     if (!vipCustomers.includes(customerName)) return null;
 
     const customerStats = {};
-    orders.forEach(order => {
+    transformedOrders.forEach((order) => {
       if (order.customer === customerName) {
         if (!customerStats[order.customer]) {
           customerStats[order.customer] = {
             orderCount: 0,
             totalQuantity: 0,
-            totalSpent: 0
+            totalSpent: 0,
           };
         }
         customerStats[order.customer].orderCount++;
@@ -723,35 +617,47 @@ const Orders = () => {
     });
 
     const stats = customerStats[customerName];
-    
+
     // Determine VIP level
-    let level = 'Bronze';
-    let color = 'text-amber-600';
-    let bgColor = 'bg-amber-50';
-    let borderColor = 'border-amber-200';
+    let level = "Bronze";
+    let color = "text-amber-600";
+    let bgColor = "bg-amber-50";
+    let borderColor = "border-amber-200";
     let icon = <Star className="w-4 h-4" />;
-    
-    if (stats.orderCount >= 5 || stats.totalQuantity >= 20 || stats.totalSpent >= 1000) {
-      level = 'Silver';
-      color = 'text-gray-600';
-      bgColor = 'bg-gray-50';
-      borderColor = 'border-gray-200';
+
+    if (
+      stats.orderCount >= 5 ||
+      stats.totalQuantity >= 20 ||
+      stats.totalSpent >= 1000
+    ) {
+      level = "Silver";
+      color = "text-gray-600";
+      bgColor = "bg-gray-50";
+      borderColor = "border-gray-200";
       icon = <Star className="w-4 h-4" />;
     }
-    
-    if (stats.orderCount >= 10 || stats.totalQuantity >= 50 || stats.totalSpent >= 2000) {
-      level = 'Gold';
-      color = 'text-yellow-600';
-      bgColor = 'bg-yellow-50';
-      borderColor = 'border-yellow-200';
+
+    if (
+      stats.orderCount >= 10 ||
+      stats.totalQuantity >= 50 ||
+      stats.totalSpent >= 2000
+    ) {
+      level = "Gold";
+      color = "text-yellow-600";
+      bgColor = "bg-yellow-50";
+      borderColor = "border-yellow-200";
       icon = <Crown className="w-4 h-4" />;
     }
-    
-    if (stats.orderCount >= 20 || stats.totalQuantity >= 100 || stats.totalSpent >= 5000) {
-      level = 'Platinum';
-      color = 'text-purple-600';
-      bgColor = 'bg-purple-50';
-      borderColor = 'border-purple-200';
+
+    if (
+      stats.orderCount >= 20 ||
+      stats.totalQuantity >= 100 ||
+      stats.totalSpent >= 5000
+    ) {
+      level = "Platinum";
+      color = "text-purple-600";
+      bgColor = "bg-purple-50";
+      borderColor = "border-purple-200";
       icon = <Crown className="w-4 h-4" />;
     }
 
@@ -761,7 +667,7 @@ const Orders = () => {
       bgColor,
       borderColor,
       icon,
-      stats
+      stats,
     };
   };
 
@@ -771,22 +677,25 @@ const Orders = () => {
         <h1 className="text-3xl font-bold text-gray-800 mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           Ramton Sifarişlər
         </h1>
-        <p className="text-gray-600 text-lg">Ramton bot tərəfindən avtomatik tanınan və manual əlavə edilən sifarişlər</p>
+        <p className="text-gray-600 text-lg">
+          Ramton bot tərəfindən avtomatik tanınan və manual əlavə edilən
+          sifarişlər
+        </p>
       </div>
-      
-      
-      
+
       {/* Statistik Kartları - Collapsible */}
       <div className="bg-white rounded-2xl mb-8 overflow-hidden">
-        <div 
+        <div
           className="p-6 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => setShowStatistics(!showStatistics)}
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-800">Sifariş Statistikaları</h2>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Sifariş Statistikaları
+            </h2>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">
-                {showStatistics ? 'Gizlət' : 'Göstər'}
+                {showStatistics ? "Gizlət" : "Göstər"}
               </span>
               {showStatistics ? (
                 <ChevronUp className="w-5 h-5 text-gray-600" />
@@ -796,70 +705,105 @@ const Orders = () => {
             </div>
           </div>
         </div>
-        
+
         {showStatistics && (
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 border border-blue-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-blue-700">Ümumi Sifariş</p>
-                    <p className="text-3xl font-bold text-blue-900">{orders.length}</p>
+                    <p className="text-sm font-medium text-blue-700">
+                      Ümumi Sifariş
+                    </p>
+                    <p className="text-3xl font-bold text-blue-900">
+                      {transformedOrders.length}
+                    </p>
                   </div>
                   <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center">
                     <Package className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 border border-green-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-green-700">Yeni Sifarişlər</p>
-                    <p className="text-3xl font-bold text-green-900">{orders.filter(o => o.status === 'Yeni').length}</p>
+                    <p className="text-sm font-medium text-green-700">
+                      Yeni Sifarişlər
+                    </p>
+                    <p className="text-3xl font-bold text-green-900">
+                      {
+                        transformedOrders.filter(
+                          (o) => o.status === orderStatus.NEW
+                        ).length
+                      }
+                    </p>
                   </div>
                   <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center">
                     <Clock className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 border border-purple-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-purple-700">Tamamlanmış</p>
-                    <p className="text-3xl font-bold text-purple-900">{orders.filter(o => o.status === 'Tamamlandı').length}</p>
+                    <p className="text-sm font-medium text-purple-700">
+                      Tamamlanmış
+                    </p>
+                    <p className="text-3xl font-bold text-purple-900">
+                      {
+                        transformedOrders.filter(
+                          (o) => o.status === orderStatus.COMPLETED
+                        ).length
+                      }
+                    </p>
                   </div>
                   <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
                     <CheckCircle className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 border border-orange-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-orange-700">Ümumi Dəyər</p>
-                    <p className="text-3xl font-bold text-orange-900">₼{orders.reduce((sum, order) => sum + order.price, 0).toFixed(2)}</p>
+                    <p className="text-sm font-medium text-orange-700">
+                      Ümumi Dəyər
+                    </p>
+                    <p className="text-3xl font-bold text-orange-900">
+                      ₼
+                      {transformedOrders
+                        .reduce((sum, order) => sum + order.price, 0)
+                        .toFixed(2)}
+                    </p>
                   </div>
                   <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center">
                     <DollarSign className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
-              
-              <div 
+
+              <div
                 className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 border border-purple-200 cursor-pointer hover:shadow-lg group"
-                onClick={() => navigate('/musteriler?vip=true')}
+                onClick={() => navigate("/musteriler?vip=true")}
                 title="VIP müştəriləri görmək üçün klikləyin"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-purple-700">VIP Müştərilər</p>
-                    <p className="text-3xl font-bold text-purple-900">{getVIPCustomers().length}</p>
+                    <p className="text-sm font-medium text-purple-700">
+                      VIP Müştərilər
+                    </p>
+                    <p className="text-3xl font-bold text-purple-900">
+                      {getVIPCustomers().length}
+                    </p>
                     <div className="flex items-center space-x-1">
-                      <p className="text-xs text-purple-600">Xüsusi müştərilər</p>
-                      <span className="text-xs text-purple-500 group-hover:text-purple-700 transition-colors">→</span>
+                      <p className="text-xs text-purple-600">
+                        Xüsusi müştərilər
+                      </p>
+                      <span className="text-xs text-purple-500 group-hover:text-purple-700 transition-colors">
+                        →
+                      </span>
                     </div>
                   </div>
                   <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
@@ -870,43 +814,58 @@ const Orders = () => {
             </div>
           </div>
         )}
-        
+
         {/* VIP Müştərilər Siyahısı */}
         {showStatistics && (
           <div className="p-6 border-t border-gray-100">
-            <h3 
+            <h3
               className="text-lg font-semibold text-gray-800 mb-4 flex items-center space-x-2 cursor-pointer hover:text-purple-600 transition-colors group"
-              onClick={() => navigate('/musteriler?vip=true')}
+              onClick={() => navigate("/musteriler?vip=true")}
               title="VIP müştəriləri görmək üçün klikləyin"
             >
               <Crown className="w-5 h-5 text-purple-600" />
               <span>VIP Müştərilər</span>
-              <span className="text-sm text-gray-400 group-hover:text-purple-600 transition-colors">→</span>
+              <span className="text-sm text-gray-400 group-hover:text-purple-600 transition-colors">
+                →
+              </span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {getVIPCustomers().map((customerName) => {
                 const vipInfo = getVIPInfo(customerName);
                 return (
-                  <div key={customerName} className={`p-4 rounded-xl border ${vipInfo.bgColor} ${vipInfo.borderColor}`}>
+                  <div
+                    key={customerName}
+                    className={`p-4 rounded-xl border ${vipInfo?.bgColor} ${vipInfo?.borderColor}`}
+                  >
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-800">{customerName}</h4>
-                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${vipInfo.color} ${vipInfo.bgColor} ${vipInfo.borderColor} border`}>
-                        {vipInfo.icon}
-                        <span>{vipInfo.level}</span>
+                      <h4 className="font-semibold text-gray-800">
+                        {customerName}
+                      </h4>
+                      <span
+                        className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${vipInfo?.color} ${vipInfo?.bgColor} ${vipInfo?.borderColor} border`}
+                      >
+                        {vipInfo?.icon}
+                        <span>{vipInfo?.level}</span>
                       </span>
                     </div>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Sifariş sayı:</span>
-                        <span className="font-medium text-gray-800">{vipInfo.stats.orderCount}</span>
+                        <span className="font-medium text-gray-800">
+                          {vipInfo?.stats?.orderCount}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Ümumi miqdar:</span>
-                        <span className="font-medium text-gray-800">{vipInfo.stats.totalQuantity} ədəd</span>
+                        <span className="font-medium text-gray-800">
+                          {vipInfo?.stats?.totalQuantity} ədəd
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Ümumi xərclər:</span>
-                        <span className="font-medium text-gray-800">₼{vipInfo.stats.totalSpent.toFixed(2)}</span>
+                        <span className="font-medium text-gray-800">
+                          ₼{vipInfo?.stats?.totalSpent?.toFixed(2)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -921,16 +880,18 @@ const Orders = () => {
       <div className="bg-white rounded-2xl mb-8">
         <div className="p-6 border-b border-gray-100">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
-            <h2 className="text-xl font-semibold text-gray-800">Sifariş İdarəetməsi</h2>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Sifariş İdarəetməsi
+            </h2>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-              <button 
+              <button
                 onClick={() => setShowAddModal(true)}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Manual Sifariş
               </button>
-              <button 
+              <button
                 onClick={exportToExcel}
                 className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
               >
@@ -954,20 +915,20 @@ const Orders = () => {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
               />
             </div>
-            
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
             >
               <option value="all">Bütün Statuslar</option>
-              <option value="Yeni">Yeni</option>
-              <option value="Gözləmədə">Gözləmədə</option>
-              <option value="Yönləndirilib">Yönləndirilib</option>
-              <option value="Tamamlandı">Tamamlandı</option>
-              <option value="Ləğv">Ləğv</option>
+              <option value={orderStatus.NEW}>Yeni</option>
+              <option value={orderStatus.WAITING}>Gözləmədə</option>
+              <option value={orderStatus.REDIRECTED}>Yönləndirilib</option>
+              <option value={orderStatus.COMPLETED}>Tamamlandı</option>
+              <option value={orderStatus.CANCELLED}>Ləğv</option>
             </select>
-            
+
             <select
               value={employeeFilter}
               onChange={(e) => setEmployeeFilter(e.target.value)}
@@ -975,12 +936,16 @@ const Orders = () => {
             >
               <option value="all">Bütün Əməkdaşlar</option>
               {employees.map((employee) => (
-                <option key={employee.id} value={employee.name}>
-                  {employee.name} - {employee.role}
+                <option
+                  key={employee.id}
+                  value={`${employee.first_name} ${employee.last_name}`}
+                >
+                  {employee.first_name} {employee.last_name} -{" "}
+                  {employee.roles?.[0]?.name || "Employee"}
                 </option>
               ))}
             </select>
-            
+
             <select
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
@@ -989,32 +954,36 @@ const Orders = () => {
               <option value="all">Bütün Məhsullar</option>
               {products.map((product) => (
                 <option key={product.id} value={product.name}>
-                  {product.name} - {product.category}
+                  {product.name} -{" "}
+                  {product.category?.name || product.category || "No Category"}
                 </option>
               ))}
             </select>
-            
+
             <select
               value={zoneFilter}
               onChange={(e) => setZoneFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
             >
               <option value="all">Bütün Zonalar</option>
-              <option value="Bakı Mərkəz">Bakı Mərkəz</option>
-              <option value="Sumqayıt">Sumqayıt</option>
-              <option value="Gəncə">Gəncə</option>
+              <option value="">Zona seçin</option>
+              {zones.map((zone) => (
+                <option key={zone.id} value={zone.id}>
+                  {zone.name}
+                </option>
+              ))}
             </select>
-            
+
             <select
               value={deliveryMethodFilter}
               onChange={(e) => setDeliveryMethodFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
             >
               <option value="all">Bütün Çatdırılma</option>
-              <option value="Kuryer">Kuryer</option>
-              <option value="Azerpoct Filialı">Azerpoct Filialı</option>
+              <option value="courier">Kuryer</option>
+              <option value="postal">Azerpoct Filialı</option>
             </select>
-            
+
             <select
               value={vipFilter}
               onChange={(e) => setVipFilter(e.target.value)}
@@ -1028,173 +997,255 @@ const Orders = () => {
         </div>
       </div>
 
-      {/* Sifariş Kartları */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-        {currentOrders.map((order) => (
-          <div key={order.id} className="bg-white rounded-2xl transition-all duration-300 transform hover:scale-105">
-            {/* Başlıq */}
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">{order.id}</h3>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(order.status)} flex items-center space-x-1`}>
-                  {getStatusIcon(order.status)}
-                  <span>{order.status}</span>
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-gray-800">{order.customer || order.employee}</p>
-                    {order.customer && getVIPInfo(order.customer) && (
-                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getVIPInfo(order.customer).bgColor} ${getVIPInfo(order.customer).color} ${getVIPInfo(order.customer).borderColor} border`}>
-                        {getVIPInfo(order.customer).icon}
-                        <span>{getVIPInfo(order.customer).level}</span>
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500">{order.date}</p>
-                </div>
-              </div>
-            </div>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Məlumatlar yüklənir...</p>
+          </div>
+        </div>
+      )}
 
-            {/* Məzmun */}
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Package className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Məhsul:</span>
-                  </div>
-                  <span className="font-medium text-gray-800">{order.product}</span>
+      {/* Error State */}
+      {ordersError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
+          <div className="flex items-center">
+            <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-red-800">
+                Xəta baş verdi
+              </h3>
+              <p className="text-red-600">
+                Sifarişlər yüklənərkən xəta baş verdi. Zəhmət olmasa səhifəni
+                yeniləyin.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sifariş Kartları */}
+      {!isLoading && !ordersError && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+          {currentOrders.map((order) => (
+            <div
+              key={order.id}
+              className="bg-white rounded-2xl transition-all duration-300 transform hover:scale-105"
+            >
+              {/* Başlıq */}
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {order.id}
+                  </h3>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+                      order.status
+                    )} flex items-center space-x-1`}
+                  >
+                    {getStatusIcon(order.status)}
+                    <span>{order.status}</span>
+                  </span>
                 </div>
-                
-                {order.customer && (
-                  <div className="flex items-center justify-between">
+
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
                     <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-600">Müştəri:</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-800">{order.customer}</span>
-                      {getVIPInfo(order.customer) && (
-                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getVIPInfo(order.customer).bgColor} ${getVIPInfo(order.customer).color} ${getVIPInfo(order.customer).borderColor} border`}>
-                          {getVIPInfo(order.customer).icon}
-                          <span>{getVIPInfo(order.customer).level}</span>
+                      <p className="font-medium text-gray-800">
+                        {order.customer || order.employee}
+                      </p>
+                      {order.customer && getVIPInfo(order.customer) && (
+                        <span
+                          className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            getVIPInfo(order.customer)?.bgColor
+                          } ${getVIPInfo(order.customer)?.color} ${
+                            getVIPInfo(order.customer)?.borderColor
+                          } border`}
+                        >
+                          {getVIPInfo(order.customer)?.icon}
+                          <span>{getVIPInfo(order.customer)?.level}</span>
                         </span>
                       )}
                     </div>
+                    <p className="text-sm text-gray-500">{order.date}</p>
                   </div>
-                )}
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Endirimli Qiymət:</span>
-                  </div>
-                  <span className="font-semibold text-green-600">₼{order.discountedPrice ? order.discountedPrice.toFixed(2) : order.price}</span>
                 </div>
-                
-                {order.discount && (
+              </div>
+
+              {/* Məzmun */}
+              <div className="p-6">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-500">Endirim:</span>
+                      <Package className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Məhsul:</span>
                     </div>
-                    <span className="text-xs text-red-600">-₼{order.discount.toFixed(2)}</span>
+                    <span className="font-medium text-gray-800">
+                      {order.product}
+                    </span>
                   </div>
-                )}
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Package className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Miqdar:</span>
-                  </div>
-                  <span className="font-medium text-gray-800">{order.quantity} ədəd</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Truck className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Kuryer:</span>
-                  </div>
-                  <span className="font-medium text-gray-800">{order.courier}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Target className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Zona:</span>
-                  </div>
-                  <span className="font-medium text-gray-800">{order.zone}</span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Truck className="w-4 h-4 text-gray-500" />
-                    <span className="text-gray-600">Çatdırılma:</span>
-                  </div>
-                  <span className={`font-medium px-2 py-1 rounded-full text-xs ${
-                    order.deliveryMethod === 'Kuryer' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {order.deliveryMethod}
-                  </span>
-                </div>
-              </div>
 
-              {/* WhatsApp Mesaj */}
-              <div className="mt-4 p-3 bg-gray-50 rounded-xl">
-                <div className="flex items-center space-x-2 mb-2">
-                  <MessageSquare className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-medium text-gray-700">Ramton Mesajı</span>
-                </div>
-                <p className="text-sm text-gray-600">{order.whatsappMessage}</p>
-              </div>
+                  {order.customer && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span className="text-gray-600">Müştəri:</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-800">
+                          {order.customer}
+                        </span>
+                        {getVIPInfo(order.customer) && (
+                          <span
+                            className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                              getVIPInfo(order.customer)?.bgColor
+                            } ${getVIPInfo(order.customer)?.color} ${
+                              getVIPInfo(order.customer)?.borderColor
+                            } border`}
+                          >
+                            {getVIPInfo(order.customer)?.icon}
+                            <span>{getVIPInfo(order.customer)?.level}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-              {/* Əməliyyatlar */}
-              <div className="mt-4 flex space-x-2">
-                <button 
-                  onClick={() => openViewModal(order)}
-                  className="flex-1 bg-blue-50 text-blue-600 py-2 px-3 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center space-x-1"
-                  title="Bax"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span className="text-sm">Bax</span>
-                </button>
-                <button 
-                  onClick={() => openEditModal(order)}
-                  className="flex-1 bg-green-50 text-green-600 py-2 px-3 rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center space-x-1"
-                  title="Redaktə"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span className="text-sm">Redaktə</span>
-                </button>
-                <button 
-                  onClick={() => openDeleteModal(order)}
-                  className="flex-1 bg-red-50 text-red-600 py-2 px-3 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center space-x-1"
-                  title="Sil"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span className="text-sm">Sil</span>
-                </button>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <DollarSign className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Endirimli Qiymət:</span>
+                    </div>
+                    <span className="font-semibold text-green-600">
+                      ₼
+                      {order.discountedPrice
+                        ? order.discountedPrice.toFixed(2)
+                        : order.price}
+                    </span>
+                  </div>
+
+                  {order.discount && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-500">Endirim:</span>
+                      </div>
+                      <span className="text-xs text-red-600">
+                        -₼{(order.discount * order.quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Package className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Miqdar:</span>
+                    </div>
+                    <span className="font-medium text-gray-800">
+                      {order.quantity} ədəd
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Truck className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Kuryer:</span>
+                    </div>
+                    <span className="font-medium text-gray-800">
+                      {order.courier}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Target className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Zona:</span>
+                    </div>
+                    <span className="font-medium text-gray-800">
+                      {order.zone}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Truck className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600">Çatdırılma:</span>
+                    </div>
+                    <span
+                      className={`font-medium px-2 py-1 rounded-full text-xs ${
+                        order.deliveryMethod === "Kuryer"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {order.deliveryMethod}
+                    </span>
+                  </div>
+                </div>
+
+                {/* WhatsApp Mesaj */}
+                <div className="mt-4 p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <MessageSquare className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-gray-700">
+                      Ramton Mesajı
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {order.whatsappMessage}
+                  </p>
+                </div>
+
+                {/* Əməliyyatlar */}
+                <div className="mt-4 flex space-x-2">
+                  <button
+                    onClick={() => openViewModal(order)}
+                    className="flex-1 bg-blue-50 text-blue-600 py-2 px-3 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center space-x-1"
+                    title="Bax"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span className="text-sm">Bax</span>
+                  </button>
+                  <button
+                    onClick={() => openEditModal(order)}
+                    className="flex-1 bg-green-50 text-green-600 py-2 px-3 rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center space-x-1"
+                    title="Redaktə"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span className="text-sm">Redaktə</span>
+                  </button>
+                  <button
+                    onClick={() => openDeleteModal(order)}
+                    className="flex-1 bg-red-50 text-red-600 py-2 px-3 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center space-x-1"
+                    title="Sil"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="text-sm">Sil</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Səhifələmə */}
       {totalPages > 1 && (
         <div className="bg-white rounded-2xl p-6 mb-8">
           <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
             <div className="text-sm text-gray-600">
-              Göstərilir: <span className="font-medium">{indexOfFirstOrder + 1}</span> - <span className="font-medium">{Math.min(indexOfLastOrder, filteredOrders.length)}</span> / <span className="font-medium">{filteredOrders.length}</span> sifariş
+              Göstərilir:{" "}
+              <span className="font-medium">{indexOfFirstOrder + 1}</span> -{" "}
+              <span className="font-medium">
+                {Math.min(indexOfLastOrder, filteredOrders.length)}
+              </span>{" "}
+              / <span className="font-medium">{filteredOrders.length}</span>{" "}
+              sifariş
             </div>
-            
+
             <div className="flex items-center space-x-2">
               {/* İlk səhifə */}
               <button
@@ -1205,7 +1256,7 @@ const Orders = () => {
               >
                 <ChevronsLeft className="w-4 h-4 text-gray-600" />
               </button>
-              
+
               {/* Əvvəlki səhifə */}
               <button
                 onClick={goToPreviousPage}
@@ -1215,27 +1266,29 @@ const Orders = () => {
               >
                 <ChevronLeft className="w-4 h-4 text-gray-600" />
               </button>
-              
+
               {/* Səhifə nömrələri */}
               <div className="flex items-center space-x-1">
                 {getPageNumbers().map((pageNumber, index) => (
                   <button
                     key={index}
-                    onClick={() => typeof pageNumber === 'number' && goToPage(pageNumber)}
-                    disabled={pageNumber === '...'}
+                    onClick={() =>
+                      typeof pageNumber === "number" && goToPage(pageNumber)
+                    }
+                    disabled={pageNumber === "..."}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       pageNumber === currentPage
-                        ? 'bg-blue-600 text-white'
-                        : pageNumber === '...'
-                        ? 'text-gray-400 cursor-default'
-                        : 'text-gray-600 hover:bg-gray-100 border border-gray-300'
+                        ? "bg-blue-600 text-white"
+                        : pageNumber === "..."
+                        ? "text-gray-400 cursor-default"
+                        : "text-gray-600 hover:bg-gray-100 border border-gray-300"
                     }`}
                   >
                     {pageNumber}
                   </button>
                 ))}
               </div>
-              
+
               {/* Növbəti səhifə */}
               <button
                 onClick={goToNextPage}
@@ -1245,7 +1298,7 @@ const Orders = () => {
               >
                 <ChevronRight className="w-4 h-4 text-gray-600" />
               </button>
-              
+
               {/* Son səhifə */}
               <button
                 onClick={goToLastPage}
@@ -1260,175 +1313,222 @@ const Orders = () => {
         </div>
       )}
 
-
-
       {/* View Sifariş Modal */}
       {showViewModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Sifariş Detalları</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Sifariş Detalları
+              </h3>
+              <button
                 onClick={() => setShowViewModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors p-1"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
-                        <div className="flex-1 overflow-y-auto p-6">
-            
-            {selectedOrder && (
-              <div className="space-y-6">
-                {/* Başlıq */}
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-800">{selectedOrder.id}</h4>
-                      <p className="text-sm text-gray-600">{selectedOrder.date}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedOrder.status)} flex items-center space-x-1`}>
-                      {getStatusIcon(selectedOrder.status)}
-                      <span>{selectedOrder.status}</span>
-                    </span>
-                  </div>
-                </div>
 
-                {/* Əməkdaş Məlumatları */}
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h5 className="font-medium text-gray-800">Əməkdaş</h5>
-                      <p className="text-gray-600">{selectedOrder.employee}</p>
+            <div className="flex-1 overflow-y-auto p-6">
+              {selectedOrder && (
+                <div className="space-y-6">
+                  {/* Başlıq */}
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-800">
+                          {selectedOrder.id}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          {selectedOrder.date}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+                          selectedOrder.status
+                        )} flex items-center space-x-1`}
+                      >
+                        {getStatusIcon(selectedOrder.status)}
+                        <span>{selectedOrder.status}</span>
+                      </span>
                     </div>
                   </div>
-                </div>
 
-                {/* Müştəri Məlumatları */}
-                {selectedOrder.customer && (
+                  {/* Əməkdaş Məlumatları */}
                   <div className="bg-gray-50 p-4 rounded-xl">
                     <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
                         <User className="w-5 h-5 text-white" />
                       </div>
-                      <div className="flex-1">
-                        <h5 className="font-medium text-gray-800">Müştəri</h5>
-                        <div className="flex items-center space-x-2">
-                          <p className="text-gray-600">{selectedOrder.customer}</p>
-                          {getVIPInfo(selectedOrder.customer) && (
-                            <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getVIPInfo(selectedOrder.customer).bgColor} ${getVIPInfo(selectedOrder.customer).color} ${getVIPInfo(selectedOrder.customer).borderColor} border`}>
-                              {getVIPInfo(selectedOrder.customer).icon}
-                              <span>{getVIPInfo(selectedOrder.customer).level}</span>
-                            </span>
-                          )}
+                      <div>
+                        <h5 className="font-medium text-gray-800">Əməkdaş</h5>
+                        <p className="text-gray-600">
+                          {selectedOrder.employee}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Müştəri Məlumatları */}
+                  {selectedOrder.customer && (
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-medium text-gray-800">Müştəri</h5>
+                          <div className="flex items-center space-x-2">
+                            <p className="text-gray-600">
+                              {selectedOrder.customer}
+                            </p>
+                            {getVIPInfo(selectedOrder.customer) && (
+                              <span
+                                className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                  getVIPInfo(selectedOrder.customer)?.bgColor
+                                } ${
+                                  getVIPInfo(selectedOrder.customer)?.color
+                                } ${
+                                  getVIPInfo(selectedOrder.customer)
+                                    ?.borderColor
+                                } border`}
+                              >
+                                {getVIPInfo(selectedOrder.customer)?.icon}
+                                <span>
+                                  {getVIPInfo(selectedOrder.customer)?.level}
+                                </span>
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Məhsul Məlumatları */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Məhsul Məlumatları */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Package className="w-5 h-5 text-purple-600" />
+                        <h5 className="font-medium text-gray-800">Məhsul</h5>
+                      </div>
+                      <p className="text-gray-600">{selectedOrder.product}</p>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Package className="w-5 h-5 text-green-600" />
+                        <h5 className="font-medium text-gray-800">Miqdar</h5>
+                      </div>
+                      <p className="text-gray-600">
+                        {selectedOrder.quantity} ədəd
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Qiymət, Kuryer və Zona */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <DollarSign className="w-5 h-5 text-green-600" />
+                        <h5 className="font-medium text-gray-800">Qiymət</h5>
+                      </div>
+                      <p className="text-2xl font-bold text-green-600">
+                        ₼{selectedOrder.price.toFixed(2)}
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Truck className="w-5 h-5 text-orange-600" />
+                        <h5 className="font-medium text-gray-800">Kuryer</h5>
+                      </div>
+                      <p className="text-gray-600">{selectedOrder.courier}</p>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Target className="w-5 h-5 text-purple-600" />
+                        <h5 className="font-medium text-gray-800">Zona</h5>
+                      </div>
+                      <p className="text-gray-600">{selectedOrder.zone}</p>
+                    </div>
+                  </div>
+
+                  {/* Çatdırılma Üsulu */}
                   <div className="bg-gray-50 p-4 rounded-xl">
                     <div className="flex items-center space-x-2 mb-2">
-                      <Package className="w-5 h-5 text-purple-600" />
-                      <h5 className="font-medium text-gray-800">Məhsul</h5>
+                      <Truck className="w-5 h-5 text-blue-600" />
+                      <h5 className="font-medium text-gray-800">
+                        Çatdırılma Üsulu
+                      </h5>
                     </div>
-                    <p className="text-gray-600">{selectedOrder.product}</p>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        selectedOrder.deliveryMethod === "Kuryer"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
+                      {selectedOrder.deliveryMethod}
+                    </span>
                   </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Package className="w-5 h-5 text-green-600" />
-                      <h5 className="font-medium text-gray-800">Miqdar</h5>
-                    </div>
-                    <p className="text-gray-600">{selectedOrder.quantity} ədəd</p>
-                  </div>
-                </div>
 
-                {/* Qiymət, Kuryer və Zona */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <DollarSign className="w-5 h-5 text-green-600" />
-                      <h5 className="font-medium text-gray-800">Qiymət</h5>
+                  {/* WhatsApp Mesajı */}
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <MessageSquare className="w-5 h-5 text-green-600" />
+                      <h5 className="font-medium text-green-800">
+                        Ramton Mesajı
+                      </h5>
                     </div>
-                    <p className="text-2xl font-bold text-green-600">₼{selectedOrder.price.toFixed(2)}</p>
+                    <p className="text-gray-700 font-medium">
+                      {selectedOrder.whatsappMessage}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Bu mesaj Ramton qrupuna göndəriləcək
+                    </p>
                   </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Truck className="w-5 h-5 text-orange-600" />
-                      <h5 className="font-medium text-gray-800">Kuryer</h5>
-                    </div>
-                    <p className="text-gray-600">{selectedOrder.courier}</p>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Target className="w-5 h-5 text-purple-600" />
-                      <h5 className="font-medium text-gray-800">Zona</h5>
-                    </div>
-                    <p className="text-gray-600">{selectedOrder.zone}</p>
-                  </div>
-                </div>
 
-                {/* Çatdırılma Üsulu */}
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Truck className="w-5 h-5 text-blue-600" />
-                    <h5 className="font-medium text-gray-800">Çatdırılma Üsulu</h5>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedOrder.deliveryMethod === 'Kuryer' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {selectedOrder.deliveryMethod}
-                  </span>
-                </div>
-
-                {/* WhatsApp Mesajı */}
-                <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <MessageSquare className="w-5 h-5 text-green-600" />
-                    <h5 className="font-medium text-green-800">Ramton Mesajı</h5>
-                  </div>
-                  <p className="text-gray-700 font-medium">{selectedOrder.whatsappMessage}</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Bu mesaj Ramton qrupuna göndəriləcək
-                  </p>
-                </div>
-
-                {/* Əlavə Məlumatlar */}
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                  <h5 className="font-medium text-blue-800 mb-3">Əlavə Məlumatlar</h5>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Sifariş ID:</span>
-                      <p className="font-medium text-gray-800">{selectedOrder.id}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Tarix:</span>
-                      <p className="font-medium text-gray-800">{selectedOrder.date}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Status:</span>
-                      <p className="font-medium text-gray-800">{selectedOrder.status}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Ümumi Dəyər:</span>
-                      <p className="font-medium text-gray-800">₼{(selectedOrder.price * selectedOrder.quantity).toFixed(2)}</p>
+                  {/* Əlavə Məlumatlar */}
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                    <h5 className="font-medium text-blue-800 mb-3">
+                      Əlavə Məlumatlar
+                    </h5>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Sifariş ID:</span>
+                        <p className="font-medium text-gray-800">
+                          {selectedOrder.id}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Tarix:</span>
+                        <p className="font-medium text-gray-800">
+                          {selectedOrder.date}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Status:</span>
+                        <p className="font-medium text-gray-800">
+                          {selectedOrder.status}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Ümumi Dəyər:</span>
+                        <p className="font-medium text-gray-800">
+                          ₼
+                          {(
+                            selectedOrder.price * selectedOrder.quantity
+                          ).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowViewModal(false)}
@@ -1461,200 +1561,280 @@ const Orders = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Yeni Sifariş Əlavə Et</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Yeni Sifariş Əlavə Et
+              </h3>
+              <button
                 onClick={() => setShowAddModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Müştəri</label>
-                <select
-                  value={newOrder.customer}
-                  onChange={(e) => setNewOrder({...newOrder, customer: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Müştəri seçin</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.name}>
-                      {customer.name} - {customer.city} ({customer.phone}) {getVIPInfo(customer.name) ? `[${getVIPInfo(customer.name).level}]` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Əməkdaş</label>
-                <select
-                  value={newOrder.employee}
-                  onChange={(e) => setNewOrder({...newOrder, employee: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Əməkdaş seçin</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.name}>
-                      {employee.name} - {employee.role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Məhsul</label>
-                <select
-                  value={newOrder.product}
-                  onChange={(e) => {
-                    const productName = e.target.value;
-                    const prices = calculatePrices(productName, newOrder.quantity, 0);
-                    setNewOrder({
-                      ...newOrder, 
-                      product: productName,
-                      discount: 0,
-                      ...prices
-                    });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Məhsul seçin</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.name}>
-                      {product.name} - {product.category} (₼{product.price})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Miqdar</label>
-                  <input
-                    type="number"
-                    value={newOrder.quantity}
-                    onChange={(e) => {
-                      const quantity = parseInt(e.target.value) || 1;
-                      const prices = calculatePrices(newOrder.product, quantity, newOrder.discount);
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Müştəri
+                  </label>
+                  <select
+                    value={newOrder.customer_id}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, customer_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Müştəri seçin</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.first_name} {customer.last_name} -{" "}
+                        {customer.phone}
+                        {customer.is_vip ? " [VIP]" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Əməkdaş
+                  </label>
+                  <select
+                    value={newOrder.responsible_employee_id}
+                    onChange={(e) =>
                       setNewOrder({
-                        ...newOrder, 
-                        quantity: quantity,
-                        ...prices
+                        ...newOrder,
+                        responsible_employee_id: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Əməkdaş seçin</option>
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.first_name} {employee.last_name} -{" "}
+                        {employee.roles?.[0]?.name || "Employee"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Məhsul
+                  </label>
+                  <select
+                    value={newOrder.product_id_id}
+                    onChange={(e) => {
+                      const productId = e.target.value;
+                      const prices = calculatePrices(
+                        productId,
+                        newOrder.quantity,
+                        newOrder.discount,
+                        newOrder.discount_type
+                      );
+                      setNewOrder({
+                        ...newOrder,
+                        product_id: productId,
+                        ...prices,
                       });
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    min="1"
-                  />
+                  >
+                    <option value="">Məhsul seçin</option>
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} -{" "}
+                        {product.category?.name ||
+                          product.category ||
+                          "No Category"}{" "}
+                        (₼{product.price})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Miqdar
+                    </label>
+                    <input
+                      type="number"
+                      value={newOrder.quantity}
+                      onChange={(e) => {
+                        const quantity = parseInt(e.target.value) || 1;
+                        const prices = calculatePrices(
+                          newOrder.product_id,
+                          quantity,
+                          newOrder.discount,
+                          newOrder.discount_type
+                        );
+                        setNewOrder({
+                          ...newOrder,
+                          quantity: quantity,
+                          ...prices,
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min="1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Vahid Qiymət (₼)
+                    </label>
+                    <input
+                      type="number"
+                      value={newOrder.price}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Endirim Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Vahid Qiymət (₼)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Endirim Məbləği (₼)
+                  </label>
                   <input
                     type="number"
-                    value={newOrder.price}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    value={newOrder.discount}
+                    onChange={(e) => {
+                      const discountAmount = parseFloat(e.target.value) || 0;
+                      const prices = calculatePrices(
+                        newOrder.product_id,
+                        newOrder.quantity,
+                        discountAmount,
+                        newOrder.discount_type
+                      );
+                      setNewOrder({
+                        ...newOrder,
+                        discount: discountAmount,
+                        discounted_price: prices.discounted_price,
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
                   />
                 </div>
-              </div>
-              
-              
-              {/* Endirim Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Endirim Məbləği (₼)</label>
-                <input
-                  type="number"
-                  value={newOrder.discount}
-                  onChange={(e) => {
-                    const discountAmount = parseFloat(e.target.value) || 0;
-                    const prices = calculatePrices(newOrder.product, newOrder.quantity, discountAmount);
-                    setNewOrder({
-                      ...newOrder,
-                      discount: discountAmount,
-                      discountedPrice: prices.discountedPrice
-                    });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-              </div>
-              
-              {/* Qiymət Hesablamaları */}
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Cəmi Qiymət:</span>
-                  <span className="font-semibold text-gray-800">₼{newOrder.totalPrice.toFixed(2)}</span>
+
+                {/* Qiymət Hesablamaları */}
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Cəmi Qiymət:</span>
+                    <span className="font-semibold text-gray-800">
+                      ₼
+                      {(
+                        (newOrder.price || 0) * (newOrder.quantity || 1)
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Endirim:</span>
+                    <span className="font-semibold text-red-600">
+                      -₼{(newOrder.discount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Endirimli Qiymət:
+                    </span>
+                    <span className="font-semibold text-green-600">
+                      ₼{(newOrder.discounted_price || 0).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Endirim:</span>
-                  <span className="font-semibold text-red-600">-₼{newOrder.discount.toFixed(2)}</span>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={newOrder.status}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, status: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value={orderStatus.NEW}>Yeni</option>
+                    <option value={orderStatus.WAITING}>Gözləmədə</option>
+                    <option value={orderStatus.REDIRECTED}>
+                      Yönləndirilib
+                    </option>
+                    <option value={orderStatus.COMPLETED}>Tamamlandı</option>
+                    <option value={orderStatus.CANCELLED}>Ləğv</option>
+                  </select>
                 </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="text-sm font-medium text-gray-700">Endirimli Qiymət:</span>
-                  <span className="font-semibold text-green-600">₼{newOrder.discountedPrice.toFixed(2)}</span>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kuryer
+                  </label>
+                  <select
+                    value={newOrder.courier_id}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, courier_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Kuryer seçin</option>
+                    {couriers.map((courier) => (
+                      <option key={courier.id} value={courier.id}>
+                        {courier.first_name} {courier.last_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={newOrder.status}
-                  onChange={(e) => setNewOrder({...newOrder, status: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Yeni">Yeni</option>
-                  <option value="Gözləmədə">Gözləmədə</option>
-                  <option value="Yönləndirilib">Yönləndirilib</option>
-                  <option value="Tamamlandı">Tamamlandı</option>
-                  <option value="Ləğv">Ləğv</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Kuryer</label>
-                <select
-                  value={newOrder.courier}
-                  onChange={(e) => setNewOrder({...newOrder, courier: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Rəşad Əhmədov">Rəşad Əhmədov</option>
-                  <option value="Elşən Məmmədov">Elşən Məmmədov</option>
-                  <option value="Orxan Əliyev">Orxan Əliyev</option>
-                  <option value="Təyin edilməyib">Təyin edilməyib</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Üsulu</label>
-                <select
-                  value={newOrder.deliveryMethod}
-                  onChange={(e) => setNewOrder({...newOrder, deliveryMethod: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Kuryer">Kuryer Çatdırılması</option>
-                  <option value="Azerpoct Filialı">Azerpoct Filialından Çatdırılma</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Zona</label>
-                <select
-                  value={newOrder.zone}
-                  onChange={(e) => setNewOrder({...newOrder, zone: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Bakı Mərkəz">Bakı Mərkəz</option>
-                  <option value="Sumqayıt">Sumqayıt</option>
-                  <option value="Gəncə">Gəncə</option>
-                </select>
-              </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Çatdırılma Üsulu
+                  </label>
+                  <select
+                    value={newOrder.deliveryMethod}
+                    onChange={(e) =>
+                      setNewOrder({
+                        ...newOrder,
+                        delivery_type: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="courier">Kuryer Çatdırılması</option>
+                    <option value="postal">
+                      Azerpoct Filialından Çatdırılma
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Zona
+                  </label>
+                  <select
+                    value={newOrder.zone_id}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, zone_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Zona seçin</option>
+                    {zones.map((zone) => (
+                      <option key={zone.id} value={zone.id}>
+                        {zone.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowAddModal(false)}
@@ -1678,199 +1858,280 @@ const Orders = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Sifarişi Redaktə Et</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Sifarişi Redaktə Et
+              </h3>
+              <button
                 onClick={() => setShowEditModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Müştəri</label>
-                <select
-                  value={newOrder.customer}
-                  onChange={(e) => setNewOrder({...newOrder, customer: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Müştəri seçin</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.name}>
-                      {customer.name} - {customer.city} ({customer.phone}) {getVIPInfo(customer.name) ? `[${getVIPInfo(customer.name).level}]` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Əməkdaş</label>
-                <select
-                  value={newOrder.employee}
-                  onChange={(e) => setNewOrder({...newOrder, employee: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Əməkdaş seçin</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.name}>
-                      {employee.name} - {employee.role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Məhsul</label>
-                <select
-                  value={newOrder.product}
-                  onChange={(e) => {
-                    const productName = e.target.value;
-                    const prices = calculatePrices(productName, newOrder.quantity, 0);
-                    setNewOrder({
-                      ...newOrder, 
-                      product: productName,
-                      discount: 0,
-                      ...prices
-                    });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Məhsul seçin</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.name}>
-                      {product.name} - {product.category} (₼{product.price})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Miqdar</label>
-                  <input
-                    type="number"
-                    value={newOrder.quantity}
-                    onChange={(e) => {
-                      const quantity = parseInt(e.target.value) || 1;
-                      const prices = calculatePrices(newOrder.product, quantity, newOrder.discount);
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Müştəri
+                  </label>
+                  <select
+                    value={newOrder.customer_id}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, customer_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Müştəri seçin</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.first_name} {customer.last_name} -{" "}
+                        {customer.phone}
+                        {customer.is_vip ? " [VIP]" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Əməkdaş
+                  </label>
+                  <select
+                    value={newOrder.responsible_employee_id}
+                    onChange={(e) =>
                       setNewOrder({
-                        ...newOrder, 
-                        quantity: quantity,
-                        ...prices
+                        ...newOrder,
+                        responsible_employee_id: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Əməkdaş seçin</option>
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.first_name} {employee.last_name} -{" "}
+                        {employee.roles?.[0]?.name || "Employee"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Məhsul
+                  </label>
+                  <select
+                    value={newOrder.product_id_id}
+                    onChange={(e) => {
+                      const productId = e.target.value;
+                      const prices = calculatePrices(
+                        productId,
+                        newOrder.quantity,
+                        newOrder.discount,
+                        newOrder.discount_type
+                      );
+                      setNewOrder({
+                        ...newOrder,
+                        product_id: productId,
+                        ...prices,
                       });
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    min="1"
-                  />
+                  >
+                    <option value="">Məhsul seçin</option>
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} -{" "}
+                        {product.category?.name ||
+                          product.category ||
+                          "No Category"}{" "}
+                        (₼{product.price})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Miqdar
+                    </label>
+                    <input
+                      type="number"
+                      value={newOrder.quantity}
+                      onChange={(e) => {
+                        const quantity = parseInt(e.target.value) || 1;
+                        const prices = calculatePrices(
+                          newOrder.product_id,
+                          quantity,
+                          newOrder.discount,
+                          newOrder.discount_type
+                        );
+                        setNewOrder({
+                          ...newOrder,
+                          quantity: quantity,
+                          ...prices,
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min="1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Vahid Qiymət (₼)
+                    </label>
+                    <input
+                      type="number"
+                      value={newOrder.price}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Endirim Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Vahid Qiymət (₼)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Endirim Məbləği (₼)
+                  </label>
                   <input
                     type="number"
-                    value={newOrder.price}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    value={newOrder.discount}
+                    onChange={(e) => {
+                      const discountAmount = parseFloat(e.target.value) || 0;
+                      const prices = calculatePrices(
+                        newOrder.product_id,
+                        newOrder.quantity,
+                        discountAmount,
+                        newOrder.discount_type
+                      );
+                      setNewOrder({
+                        ...newOrder,
+                        discount: discountAmount,
+                        discounted_price: prices.discounted_price,
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
                   />
                 </div>
-              </div>
-              
-              {/* Endirim Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Endirim Məbləği (₼)</label>
-                <input
-                  type="number"
-                  value={newOrder.discount}
-                  onChange={(e) => {
-                    const discountAmount = parseFloat(e.target.value) || 0;
-                    const prices = calculatePrices(newOrder.product, newOrder.quantity, discountAmount);
-                    setNewOrder({
-                      ...newOrder,
-                      discount: discountAmount,
-                      discountedPrice: prices.discountedPrice
-                    });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-              </div>
-              
-              {/* Qiymət Hesablamaları */}
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Cəmi Qiymət:</span>
-                  <span className="font-semibold text-gray-800">₼{newOrder.totalPrice.toFixed(2)}</span>
+
+                {/* Qiymət Hesablamaları */}
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Cəmi Qiymət:</span>
+                    <span className="font-semibold text-gray-800">
+                      ₼
+                      {(
+                        (newOrder.price || 0) * (newOrder.quantity || 1)
+                      ).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Endirim:</span>
+                    <span className="font-semibold text-red-600">
+                      -₼{(newOrder.discount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Endirimli Qiymət:
+                    </span>
+                    <span className="font-semibold text-green-600">
+                      ₼{(newOrder.discounted_price || 0).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Endirim:</span>
-                  <span className="font-semibold text-red-600">-₼{newOrder.discount.toFixed(2)}</span>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={newOrder.status}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, status: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value={orderStatus.NEW}>Yeni</option>
+                    <option value={orderStatus.WAITING}>Gözləmədə</option>
+                    <option value={orderStatus.REDIRECTED}>
+                      Yönləndirilib
+                    </option>
+                    <option value={orderStatus.COMPLETED}>Tamamlandı</option>
+                    <option value={orderStatus.CANCELLED}>Ləğv</option>
+                  </select>
                 </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="text-sm font-medium text-gray-700">Endirimli Qiymət:</span>
-                  <span className="font-semibold text-green-600">₼{newOrder.discountedPrice.toFixed(2)}</span>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kuryer
+                  </label>
+                  <select
+                    value={newOrder.courier_id}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, courier_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Kuryer seçin</option>
+                    {couriers.map((courier) => (
+                      <option key={courier.id} value={courier.id}>
+                        {courier.first_name} {courier.last_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={newOrder.status}
-                  onChange={(e) => setNewOrder({...newOrder, status: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Yeni">Yeni</option>
-                  <option value="Gözləmədə">Gözləmədə</option>
-                  <option value="Yönləndirilib">Yönləndirilib</option>
-                  <option value="Tamamlandı">Tamamlandı</option>
-                  <option value="Ləğv">Ləğv</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Kuryer</label>
-                <select
-                  value={newOrder.courier}
-                  onChange={(e) => setNewOrder({...newOrder, courier: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Rəşad Əhmədov">Rəşad Əhmədov</option>
-                  <option value="Elşən Məmmədov">Elşən Məmmədov</option>
-                  <option value="Orxan Əliyev">Orxan Əliyev</option>
-                  <option value="Təyin edilməyib">Təyin edilməyib</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Üsulu</label>
-                <select
-                  value={newOrder.deliveryMethod}
-                  onChange={(e) => setNewOrder({...newOrder, deliveryMethod: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Kuryer">Kuryer Çatdırılması</option>
-                  <option value="Azerpoct Filialı">Azerpoct Filialından Çatdırılma</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Zona</label>
-                <select
-                  value={newOrder.zone}
-                  onChange={(e) => setNewOrder({...newOrder, zone: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Bakı Mərkəz">Bakı Mərkəz</option>
-                  <option value="Sumqayıt">Sumqayıt</option>
-                  <option value="Gəncə">Gəncə</option>
-                </select>
-              </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Çatdırılma Üsulu
+                  </label>
+                  <select
+                    value={newOrder.deliveryMethod}
+                    onChange={(e) =>
+                      setNewOrder({
+                        ...newOrder,
+                        deliveryMethod: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="Kuryer">Kuryer Çatdırılması</option>
+                    <option value="Azerpoct Filialı">
+                      Azerpoct Filialından Çatdırılma
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Zona
+                  </label>
+                  <select
+                    value={newOrder.zone_id}
+                    onChange={(e) =>
+                      setNewOrder({ ...newOrder, zone_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Zona seçin</option>
+                    {zones.map((zone) => (
+                      <option key={zone.id} value={zone.id}>
+                        {zone.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowEditModal(false)}
@@ -1894,20 +2155,24 @@ const Orders = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-800">Sifarişi Sil</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Sifarişi Sil
+              </h3>
+              <button
                 onClick={() => setShowDeleteModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
-              <h4 className="text-lg font-medium text-gray-800 mb-2">Sifarişi silmək istədiyinizə əminsiniz?</h4>
+              <h4 className="text-lg font-medium text-gray-800 mb-2">
+                Sifarişi silmək istədiyinizə əminsiniz?
+              </h4>
               <p className="text-gray-600">
                 <strong>{selectedOrder?.id}</strong> - {selectedOrder?.product}
               </p>
@@ -1915,7 +2180,7 @@ const Orders = () => {
                 Bu əməliyyat geri alına bilməz.
               </p>
             </div>
-            
+
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
@@ -1939,51 +2204,72 @@ const Orders = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Kuryer Təyin Et</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Kuryer Təyin Et
+              </h3>
+              <button
                 onClick={() => setShowCourierAssignment(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="p-6">
               {selectedOrder && (
                 <div className="space-y-4">
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                    <h4 className="font-medium text-blue-800 mb-2">Sifariş Məlumatları</h4>
+                    <h4 className="font-medium text-blue-800 mb-2">
+                      Sifariş Məlumatları
+                    </h4>
                     <div className="space-y-1 text-sm">
-                      <p><span className="font-medium">ID:</span> {selectedOrder.id}</p>
-                      <p><span className="font-medium">Məhsul:</span> {selectedOrder.product}</p>
-                      <p><span className="font-medium">Zona:</span> {selectedOrder.zone}</p>
-                      <p><span className="font-medium">Cari Kuryer:</span> {selectedOrder.courier}</p>
+                      <p>
+                        <span className="font-medium">ID:</span>{" "}
+                        {selectedOrder.id}
+                      </p>
+                      <p>
+                        <span className="font-medium">Məhsul:</span>{" "}
+                        {selectedOrder.product}
+                      </p>
+                      <p>
+                        <span className="font-medium">Zona:</span>{" "}
+                        {selectedOrder.zone}
+                      </p>
+                      <p>
+                        <span className="font-medium">Cari Kuryer:</span>{" "}
+                        {selectedOrder.courier}
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Kuryer Seçin</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Kuryer Seçin
+                    </label>
                     <select
                       value={assignedCourier}
                       onChange={(e) => setAssignedCourier(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Kuryer seçin</option>
-                      <option value="Rəşad Əhmədov">Rəşad Əhmədov</option>
-                      <option value="Elşən Məmmədov">Elşən Məmmədov</option>
-                      <option value="Orxan Əliyev">Orxan Əliyev</option>
+                      {couriers.map((courier) => (
+                        <option key={courier.id} value={courier.id}>
+                          {courier.first_name} {courier.last_name}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                  
+
                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                     <p className="text-sm text-yellow-800">
-                      <strong>Qeyd:</strong> Kuryer təyin edildikdə sifariş statusu avtomatik olaraq "Yönləndirilib" olacaq.
+                      <strong>Qeyd:</strong> Kuryer təyin edildikdə sifariş
+                      statusu avtomatik olaraq "Yönləndirilib" olacaq.
                     </p>
                   </div>
                 </div>
               )}
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowCourierAssignment(false)}
@@ -2007,11 +2293,22 @@ const Orders = () => {
       {showExportNotification && (
         <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 flex items-center space-x-2">
           <CheckCircle className="w-5 h-5" />
-                          <span>{filteredOrders.length} sifariş {(searchTerm || statusFilter !== 'all' || employeeFilter !== 'all' || productFilter !== 'all' || deliveryMethodFilter !== 'all' || vipFilter !== 'all') ? '(filtrli)' : ''} uğurla yükləndi!</span>
+          <span>
+            {filteredOrders.length} sifariş{" "}
+            {searchTerm ||
+            statusFilter !== "all" ||
+            employeeFilter !== "all" ||
+            productFilter !== "all" ||
+            deliveryMethodFilter !== "all" ||
+            vipFilter !== "all"
+              ? "(filtrli)"
+              : ""}{" "}
+            uğurla yükləndi!
+          </span>
         </div>
       )}
     </div>
   );
 };
 
-export default Orders; 
+export default Orders;

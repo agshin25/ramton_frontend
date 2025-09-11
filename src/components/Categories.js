@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import React, { useState } from "react";
+import {
+  Search,
+  Filter,
+  Plus,
+  Edit,
+  Trash2,
   Package,
   Tag,
   TrendingUp,
@@ -13,72 +13,31 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
-} from 'lucide-react';
+  ChevronsRight,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  useGetCategoriesQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+} from "../services/categoriesApi";
 
 const Categories = () => {
-  // Sample categories data
-  const initialCategories = [
-    {
-      id: 1,
-      name: 'Telefon',
-      description: 'Mobil telefonlar və aksesuarları',
-      productCount: 15,
-      status: 'Aktiv',
-      createdAt: '2024-01-15',
-      updatedAt: '2024-01-20',
-      icon: '📱',
-      color: 'blue'
-    },
-    {
-      id: 2,
-      name: 'Kompyuter',
-      description: 'Noutbuklar və desktop kompyuterlər',
-      productCount: 8,
-      status: 'Aktiv',
-      createdAt: '2024-01-10',
-      updatedAt: '2024-01-18',
-      icon: '💻',
-      color: 'green'
-    },
-    {
-      id: 3,
-      name: 'Planşet',
-      description: 'iPad və digər planşetlər',
-      productCount: 5,
-      status: 'Aktiv',
-      createdAt: '2024-01-12',
-      updatedAt: '2024-01-19',
-      icon: '📱',
-      color: 'purple'
-    },
-    {
-      id: 4,
-      name: 'Aksesuar',
-      description: 'Qulaqlıqlar, saatlar və digər aksesuarlar',
-      productCount: 25,
-      status: 'Aktiv',
-      createdAt: '2024-01-08',
-      updatedAt: '2024-01-16',
-      icon: '🎧',
-      color: 'orange'
-    },
-    {
-      id: 5,
-      name: 'Kamera',
-      description: 'Foto və video kameralar',
-      productCount: 3,
-      status: 'Passiv',
-      createdAt: '2024-01-05',
-      updatedAt: '2024-01-14',
-      icon: '📷',
-      color: 'red'
-    }
-  ];
+  // API hooks
+  const { data: categoriesData, isLoading, isError } = useGetCategoriesQuery();
+  const [createCategory, { isLoading: isCreating }] =
+    useCreateCategoryMutation();
+  const [updateCategory, { isLoading: isUpdating }] =
+    useUpdateCategoryMutation();
+  const [deleteCategory, { isLoading: isDeleting }] =
+    useDeleteCategoryMutation();
 
-  const [categories, setCategories] = useState(initialCategories);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  // Extract categories from API response
+  const categories = categoriesData?.data || [];
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [categoriesPerPage] = useState(5);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -87,39 +46,58 @@ const Categories = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [newCategory, setNewCategory] = useState({
-    name: '',
-    description: '',
-    status: 'Aktiv',
-    icon: '📱',
-    color: 'blue'
+    name: "",
+    description: "",
+    status: "active",
   });
 
+  // Toast notification states
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success");
+
+  // Toast notification function
+  const showToastNotification = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
   // Filter categories
-  const filteredCategories = categories.filter(category => {
-    const matchesSearch = category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         category.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || category.status === statusFilter;
-    
+  const filteredCategories = categories.filter((category) => {
+    const matchesSearch =
+      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (category.description &&
+        category.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus =
+      statusFilter === "all" || category.status === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
   // Pagination
   const indexOfLastCategory = currentPage * categoriesPerPage;
   const indexOfFirstCategory = indexOfLastCategory - categoriesPerPage;
-  const currentCategories = filteredCategories.slice(indexOfFirstCategory, indexOfLastCategory);
+  const currentCategories = filteredCategories.slice(
+    indexOfFirstCategory,
+    indexOfLastCategory
+  );
   const totalPages = Math.ceil(filteredCategories.length / categoriesPerPage);
 
   // Pagination functions
   const goToPage = (pageNumber) => setCurrentPage(pageNumber);
-  const goToNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-  const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const goToNextPage = () =>
+    currentPage < totalPages && setCurrentPage(currentPage + 1);
+  const goToPreviousPage = () =>
+    currentPage > 1 && setCurrentPage(currentPage - 1);
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
 
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
@@ -129,73 +107,109 @@ const Categories = () => {
         for (let i = 1; i <= 4; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       } else if (currentPage >= totalPages - 2) {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = totalPages - 3; i <= totalPages; i++) {
           pageNumbers.push(i);
         }
       } else {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = currentPage - 1; i <= currentPage + 1; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
   // CRUD Functions
-  const handleAddCategory = () => {
-    const newId = Math.max(...categories.map(c => c.id)) + 1;
-    const today = new Date().toISOString().split('T')[0];
-    const categoryToAdd = {
-      ...newCategory,
-      id: newId,
-      productCount: 0,
-      createdAt: today,
-      updatedAt: today
-    };
-    
-    setCategories([...categories, categoryToAdd]);
-    
-    // Reset form
-    setNewCategory({
-      name: '',
-      description: '',
-      status: 'Aktiv',
-      icon: '📱',
-      color: 'blue'
-    });
-    setShowAddModal(false);
-  };
-
-  const handleEditCategory = () => {
-    if (selectedCategory) {
-      const today = new Date().toISOString().split('T')[0];
-      const updatedCategories = categories.map(category =>
-        category.id === selectedCategory.id 
-          ? { ...category, ...newCategory, updatedAt: today }
-          : category
-      );
-      setCategories(updatedCategories);
-      setShowEditModal(false);
-      setSelectedCategory(null);
+  const handleAddCategory = async () => {
+    try {
+      const categoryData = {
+        ...newCategory,
+        description:
+          newCategory.description && newCategory.description.trim() !== ""
+            ? newCategory.description
+            : null,
+      };
+      await createCategory(categoryData).unwrap();
+      showToastNotification("Kateqoriya uğurla əlavə edildi!", "success");
+      setShowAddModal(false);
+      // Reset form
+      setNewCategory({
+        name: "",
+        description: "",
+        status: "active",
+      });
+    } catch (error) {
+      console.error("Kateqoriya əlavə edilərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Kateqoriya əlavə edilərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
     }
   };
 
-  const handleDeleteCategory = () => {
-    if (selectedCategory) {
-      const updatedCategories = categories.filter(category => category.id !== selectedCategory.id);
-      setCategories(updatedCategories);
+  const handleEditCategory = async () => {
+    try {
+      // Only send changed fields
+      const categoryData = {};
+
+      // Check if name has changed
+      if (newCategory.name !== selectedCategory.name) {
+        categoryData.name = newCategory.name;
+      }
+
+      // Check if description has changed
+      const newDescription =
+        newCategory.description && newCategory.description.trim() !== ""
+          ? newCategory.description
+          : null;
+      if (newDescription !== selectedCategory.description) {
+        categoryData.description = newDescription;
+      }
+
+      // Check if status has changed
+      if (newCategory.status !== selectedCategory.status) {
+        categoryData.status = newCategory.status;
+      }
+
+      // Only proceed if there are changes
+      if (Object.keys(categoryData).length === 0) {
+        showToastNotification("Heç bir dəyişiklik edilməyib!", "error");
+        return;
+      }
+
+      await updateCategory({
+        id: selectedCategory.id,
+        ...categoryData,
+      }).unwrap();
+      showToastNotification("Kateqoriya uğurla yeniləndi!", "success");
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Kateqoriya yenilənərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Kateqoriya yenilənərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    try {
+      await deleteCategory(selectedCategory.id).unwrap();
+      showToastNotification("Kateqoriya uğurla silindi!", "success");
       setShowDeleteModal(false);
-      setSelectedCategory(null);
+    } catch (error) {
+      console.error("Kateqoriya silinərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Kateqoriya silinərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
     }
   };
 
@@ -203,10 +217,8 @@ const Categories = () => {
     setSelectedCategory(category);
     setNewCategory({
       name: category.name,
-      description: category.description,
+      description: category.description || "",
       status: category.status,
-      icon: category.icon,
-      color: category.color
     });
     setShowEditModal(true);
   };
@@ -222,19 +234,75 @@ const Categories = () => {
   };
 
   const getStatusColor = (status) => {
-    return status === 'Aktiv' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "deactive":
+        return "bg-red-100 text-red-800";
+      case "passiv":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case "active":
+        return "Aktiv";
+      case "deactive":
+        return "Qeyri-aktiv";
+      case "passiv":
+        return "Passiv";
+      default:
+        return status;
+    }
   };
 
   const getColorClass = (color) => {
     const colorMap = {
-      blue: 'bg-blue-500',
-      green: 'bg-green-500',
-      purple: 'bg-purple-500',
-      orange: 'bg-orange-500',
-      red: 'bg-red-500'
+      blue: "bg-blue-500",
+      green: "bg-green-500",
+      purple: "bg-purple-500",
+      orange: "bg-orange-500",
+      red: "bg-red-500",
     };
-    return colorMap[color] || 'bg-gray-500';
+    return colorMap[color] || "bg-gray-500";
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Kateqoriyalar yüklənir...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <div className="flex items-center">
+            <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-red-800">
+                Xəta baş verdi
+              </h3>
+              <p className="text-red-600">
+                Kateqoriyalar yüklənərkən xəta baş verdi. Zəhmət olmasa səhifəni
+                yeniləyin.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
@@ -242,7 +310,9 @@ const Categories = () => {
         <h1 className="text-3xl font-bold text-gray-800 mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           Kateqoriyalar
         </h1>
-        <p className="text-gray-600 text-lg">Məhsul kateqoriyalarının idarə edilməsi</p>
+        <p className="text-gray-600 text-lg">
+          Məhsul kateqoriyalarının idarə edilməsi
+        </p>
       </div>
 
       {/* Statistics Cards */}
@@ -250,44 +320,65 @@ const Categories = () => {
         <div className="bg-white p-6 rounded-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Ümumi Kateqoriya</p>
-              <p className="text-3xl font-bold text-gray-900">{categories.length}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Ümumi Kateqoriya
+              </p>
+              <p className="text-3xl font-bold text-gray-900">
+                {categories.length}
+              </p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center">
               <Tag className="w-8 h-8 text-white" />
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Aktiv Kateqoriyalar</p>
-              <p className="text-3xl font-bold text-green-600">{categories.filter(c => c.status === 'Aktiv').length}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Aktiv Kateqoriyalar
+              </p>
+              <p className="text-3xl font-bold text-green-600">
+                {categories.filter((c) => c.status === "active").length}
+              </p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center">
               <Package className="w-8 h-8 text-white" />
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Ümumi Məhsul</p>
-              <p className="text-3xl font-bold text-purple-600">{categories.reduce((sum, c) => sum + c.productCount, 0)}</p>
+              <p className="text-3xl font-bold text-purple-600">
+                {categories.reduce(
+                  (sum, c) => sum + (c.products_count || 0),
+                  0
+                )}
+              </p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
               <TrendingUp className="w-8 h-8 text-white" />
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Passiv Kateqoriyalar</p>
-              <p className="text-3xl font-bold text-red-600">{categories.filter(c => c.status === 'Passiv').length}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Passiv Kateqoriyalar
+              </p>
+              <p className="text-3xl font-bold text-red-600">
+                {
+                  categories.filter(
+                    (c) => c.status === "passiv" || c.status === "deactive"
+                  ).length
+                }
+              </p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center">
               <Package className="w-8 h-8 text-white" />
@@ -300,9 +391,11 @@ const Categories = () => {
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
         <div className="p-6 border-b border-gray-200">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
-            <h2 className="text-xl font-semibold text-gray-800">Kateqoriya Siyahısı</h2>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Kateqoriya Siyahısı
+            </h2>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-              <button 
+              <button
                 onClick={() => setShowAddModal(true)}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
               >
@@ -326,17 +419,18 @@ const Categories = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            
+
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">Bütün Statuslar</option>
-              <option value="Aktiv">Aktiv</option>
-              <option value="Passiv">Passiv</option>
+              <option value="active">Aktiv</option>
+              <option value="passiv">Passiv</option>
+              <option value="deactive">Qeyri-aktiv</option>
             </select>
-            
+
             <button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center">
               <Filter className="w-4 h-4 mr-2" />
               Filtr
@@ -371,51 +465,74 @@ const Categories = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {currentCategories.map((category) => (
-                <tr key={category.id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={category.id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className={`w-10 h-10 ${getColorClass(category.color)} rounded-lg flex items-center justify-center text-white text-lg mr-3`}>
-                        {category.icon}
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {category.name}
                       </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{category.name}</div>
-                        <div className="text-sm text-gray-500">ID: #{category.id}</div>
+                      <div className="text-sm text-gray-500">
+                        ID: #{category.id}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">{category.description}</div>
+                    <div className="text-sm text-gray-900 max-w-xs truncate">
+                      {category.description}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{category.productCount}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {category.products_count || 0}
+                    </div>
                     <div className="text-sm text-gray-500">məhsul</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(category.status)}`}>
-                      {category.status}
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                        category.status
+                      )}`}
+                    >
+                      {getStatusText(category.status)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div>{category.createdAt}</div>
-                    <div className="text-xs">Yeniləndi: {category.updatedAt}</div>
+                    <div>
+                      {category.created_at
+                        ? new Date(category.created_at).toLocaleDateString(
+                            "az-AZ"
+                          )
+                        : ""}
+                    </div>
+                    <div className="text-xs">
+                      Yeniləndi:{" "}
+                      {category.updated_at
+                        ? new Date(category.updated_at).toLocaleDateString(
+                            "az-AZ"
+                          )
+                        : ""}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button 
+                      <button
                         onClick={() => openViewModal(category)}
                         className="text-blue-600 hover:text-blue-900"
                         title="Bax"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => openEditModal(category)}
                         className="text-green-600 hover:text-green-900"
                         title="Redaktə"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => openDeleteModal(category)}
                         className="text-red-600 hover:text-red-900"
                         title="Sil"
@@ -435,9 +552,17 @@ const Categories = () => {
           <div className="px-6 py-4 border-t border-gray-200">
             <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
               <div className="text-sm text-gray-600">
-                Göstərilir: <span className="font-medium">{indexOfFirstCategory + 1}</span> - <span className="font-medium">{Math.min(indexOfLastCategory, filteredCategories.length)}</span> / <span className="font-medium">{filteredCategories.length}</span> kateqoriya
+                Göstərilir:{" "}
+                <span className="font-medium">{indexOfFirstCategory + 1}</span>{" "}
+                -{" "}
+                <span className="font-medium">
+                  {Math.min(indexOfLastCategory, filteredCategories.length)}
+                </span>{" "}
+                /{" "}
+                <span className="font-medium">{filteredCategories.length}</span>{" "}
+                kateqoriya
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <button
                   onClick={goToFirstPage}
@@ -447,7 +572,7 @@ const Categories = () => {
                 >
                   <ChevronsLeft className="w-4 h-4 text-gray-600" />
                 </button>
-                
+
                 <button
                   onClick={goToPreviousPage}
                   disabled={currentPage === 1}
@@ -456,26 +581,28 @@ const Categories = () => {
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-600" />
                 </button>
-                
+
                 <div className="flex items-center space-x-1">
                   {getPageNumbers().map((pageNumber, index) => (
                     <button
                       key={index}
-                      onClick={() => typeof pageNumber === 'number' && goToPage(pageNumber)}
-                      disabled={pageNumber === '...'}
+                      onClick={() =>
+                        typeof pageNumber === "number" && goToPage(pageNumber)
+                      }
+                      disabled={pageNumber === "..."}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         pageNumber === currentPage
-                          ? 'bg-blue-600 text-white'
-                          : pageNumber === '...'
-                          ? 'text-gray-400 cursor-default'
-                          : 'text-gray-600 hover:bg-gray-100 border border-gray-300'
+                          ? "bg-blue-600 text-white"
+                          : pageNumber === "..."
+                          ? "text-gray-400 cursor-default"
+                          : "text-gray-600 hover:bg-gray-100 border border-gray-300"
                       }`}
                     >
                       {pageNumber}
                     </button>
                   ))}
                 </div>
-                
+
                 <button
                   onClick={goToNextPage}
                   disabled={currentPage === totalPages}
@@ -484,7 +611,7 @@ const Categories = () => {
                 >
                   <ChevronRight className="w-4 h-4 text-gray-600" />
                 </button>
-                
+
                 <button
                   onClick={goToLastPage}
                   disabled={currentPage === totalPages}
@@ -504,84 +631,71 @@ const Categories = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Yeni Kateqoriya Əlavə Et</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Yeni Kateqoriya Əlavə Et
+              </h3>
+              <button
                 onClick={() => setShowAddModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kateqoriya Adı
+                  </label>
                   <input
                     type="text"
                     value={newCategory.name}
-                    onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                    onChange={(e) =>
+                      setNewCategory({ ...newCategory, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Kateqoriya adını daxil edin"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Təsvir
+                  </label>
                   <textarea
                     value={newCategory.description}
-                    onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
+                    onChange={(e) =>
+                      setNewCategory({
+                        ...newCategory,
+                        description: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Kateqoriya təsvirini daxil edin"
                     rows="3"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
                   <select
                     value={newCategory.status}
-                    onChange={(e) => setNewCategory({...newCategory, status: e.target.value})}
+                    onChange={(e) =>
+                      setNewCategory({ ...newCategory, status: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İkon</label>
-                  <select
-                    value={newCategory.icon}
-                    onChange={(e) => setNewCategory({...newCategory, icon: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="📱">📱 Telefon</option>
-                    <option value="💻">💻 Kompyuter</option>
-                    <option value="📱">📱 Planşet</option>
-                    <option value="⌚">⌚ Saat</option>
-                    <option value="🎧">🎧 Qulaqlıq</option>
-                    <option value="📷">📷 Kamera</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rəng</label>
-                  <select
-                    value={newCategory.color}
-                    onChange={(e) => setNewCategory({...newCategory, color: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="blue">Mavi</option>
-                    <option value="green">Yaşıl</option>
-                    <option value="purple">Bənövşəyi</option>
-                    <option value="orange">Narıncı</option>
-                    <option value="red">Qırmızı</option>
+                    <option value="active">Aktiv</option>
+                    <option value="passiv">Passiv</option>
+                    <option value="deactive">Qeyri-aktiv</option>
                   </select>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowAddModal(false)}
@@ -606,84 +720,71 @@ const Categories = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Kateqoriyanı Redaktə Et</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Kateqoriyanı Redaktə Et
+              </h3>
+              <button
                 onClick={() => setShowEditModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kateqoriya Adı
+                  </label>
                   <input
                     type="text"
                     value={newCategory.name}
-                    onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                    onChange={(e) =>
+                      setNewCategory({ ...newCategory, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Kateqoriya adını daxil edin"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Təsvir
+                  </label>
                   <textarea
                     value={newCategory.description}
-                    onChange={(e) => setNewCategory({...newCategory, description: e.target.value})}
+                    onChange={(e) =>
+                      setNewCategory({
+                        ...newCategory,
+                        description: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Kateqoriya təsvirini daxil edin"
                     rows="3"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
                   <select
                     value={newCategory.status}
-                    onChange={(e) => setNewCategory({...newCategory, status: e.target.value})}
+                    onChange={(e) =>
+                      setNewCategory({ ...newCategory, status: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İkon</label>
-                  <select
-                    value={newCategory.icon}
-                    onChange={(e) => setNewCategory({...newCategory, icon: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="📱">📱 Telefon</option>
-                    <option value="💻">💻 Kompyuter</option>
-                    <option value="📱">📱 Planşet</option>
-                    <option value="⌚">⌚ Saat</option>
-                    <option value="🎧">🎧 Qulaqlıq</option>
-                    <option value="📷">📷 Kamera</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rəng</label>
-                  <select
-                    value={newCategory.color}
-                    onChange={(e) => setNewCategory({...newCategory, color: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="blue">Mavi</option>
-                    <option value="green">Yaşıl</option>
-                    <option value="purple">Bənövşəyi</option>
-                    <option value="orange">Narıncı</option>
-                    <option value="red">Qırmızı</option>
+                    <option value="active">Aktiv</option>
+                    <option value="passiv">Passiv</option>
+                    <option value="deactive">Qeyri-aktiv</option>
                   </select>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowEditModal(false)}
@@ -708,20 +809,24 @@ const Categories = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-800">Kateqoriyanı Sil</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Kateqoriyanı Sil
+              </h3>
+              <button
                 onClick={() => setShowDeleteModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8 text-red-600" />
               </div>
-              <h4 className="text-lg font-medium text-gray-800 mb-2">Kateqoriyanı silmək istədiyinizə əminsiniz?</h4>
+              <h4 className="text-lg font-medium text-gray-800 mb-2">
+                Kateqoriyanı silmək istədiyinizə əminsiniz?
+              </h4>
               <p className="text-gray-600">
                 <strong>{selectedCategory?.name}</strong>
               </p>
@@ -729,7 +834,7 @@ const Categories = () => {
                 Bu əməliyyat geri alına bilməz.
               </p>
             </div>
-            
+
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
@@ -753,38 +858,45 @@ const Categories = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Kateqoriya Detalları</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Kateqoriya Detalları
+              </h3>
+              <button
                 onClick={() => setShowViewModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="p-6">
               {selectedCategory && (
                 <div className="space-y-6">
                   {/* Category Header */}
                   <div className="bg-gradient-to-r from-blue-50 to-purple-100 p-4 rounded-xl">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-16 h-16 ${getColorClass(selectedCategory.color)} rounded-xl flex items-center justify-center text-white text-2xl`}>
-                        {selectedCategory.icon}
-                      </div>
-                      <div>
-                        <h4 className="text-xl font-semibold text-gray-800">{selectedCategory.name}</h4>
-                        <p className="text-gray-600">ID: #{selectedCategory.id}</p>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedCategory.status)}`}>
-                          {selectedCategory.status}
-                        </span>
-                      </div>
+                    <div>
+                      <h4 className="text-xl font-semibold text-gray-800">
+                        {selectedCategory.name}
+                      </h4>
+                      <p className="text-gray-600">
+                        ID: #{selectedCategory.id}
+                      </p>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                          selectedCategory.status
+                        )}`}
+                      >
+                        {getStatusText(selectedCategory.status)}
+                      </span>
                     </div>
                   </div>
 
                   {/* Description */}
                   <div className="bg-gray-50 p-4 rounded-xl">
                     <h5 className="font-medium text-gray-800 mb-2">Təsvir</h5>
-                    <p className="text-gray-700">{selectedCategory.description}</p>
+                    <p className="text-gray-700">
+                      {selectedCategory.description}
+                    </p>
                   </div>
 
                   {/* Statistics */}
@@ -793,27 +905,43 @@ const Categories = () => {
                       <Package className="w-5 h-5 text-blue-600" />
                       <h5 className="font-medium text-gray-800">Məhsul Sayı</h5>
                     </div>
-                    <p className="text-2xl font-bold text-blue-600">{selectedCategory.productCount}</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {selectedCategory.products_count || 0}
+                    </p>
                   </div>
 
                   {/* Dates */}
                   <div className="bg-gray-50 p-4 rounded-xl">
-                    <h5 className="font-medium text-gray-800 mb-3">Tarix Məlumatları</h5>
+                    <h5 className="font-medium text-gray-800 mb-3">
+                      Tarix Məlumatları
+                    </h5>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-gray-600">Yaradılma Tarixi</p>
-                        <p className="font-medium text-gray-800">{selectedCategory.createdAt}</p>
+                        <p className="font-medium text-gray-800">
+                          {selectedCategory.created_at
+                            ? new Date(
+                                selectedCategory.created_at
+                              ).toLocaleDateString("az-AZ")
+                            : ""}
+                        </p>
                       </div>
                       <div>
                         <p className="text-gray-600">Son Yenilənmə</p>
-                        <p className="font-medium text-gray-800">{selectedCategory.updatedAt}</p>
+                        <p className="font-medium text-gray-800">
+                          {selectedCategory.updated_at
+                            ? new Date(
+                                selectedCategory.updated_at
+                              ).toLocaleDateString("az-AZ")
+                            : ""}
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowViewModal(false)}
@@ -834,8 +962,28 @@ const Categories = () => {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50">
+          <div
+            className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
+              toastType === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            {toastType === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Categories; 
+export default Categories;

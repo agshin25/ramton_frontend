@@ -19,7 +19,6 @@ import {
   TrendingUp
 } from 'lucide-react';
 
-// Employee data that can be used across components
 export const employees = [
   {
     id: 1,

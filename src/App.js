@@ -32,7 +32,6 @@ import Couriers from './components/Couriers';
 import Zones from './components/Zones';
 import Admin from './components/Admin';
 import Roles from './components/Roles';
-import Permissions from './components/Permissions';
 import SettingsComponent from './components/Settings';
 import BotMonitoring from './components/BotMonitoring';
 import OrderStatistics from './components/OrderStatistics';
@@ -159,7 +158,6 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { name: 'Bildirişlər', icon: Bell, path: '/bildirisler' },
     { name: 'Admin', icon: Shield, path: '/admin' },
     { name: 'Rollar', icon: UserCheck, path: '/rollar' },
-    { name: 'İcazələr', icon: Key, path: '/icazeler' },
     { name: 'Bot Monitorinq', icon: MessageSquare, path: '/bot-monitoring' },
     { name: 'Hesabatlar', icon: BarChart3, path: '/hesabatlar' },
     { name: 'Tənzimləmələr', icon: Settings, path: '/tenzimlemeler' },
@@ -623,7 +621,6 @@ function App() {
                         <Route path="/musteriler" element={<Customers />} />
                         <Route path="/admin" element={<Admin />} />
                         <Route path="/rollar" element={<Roles />} />
-                        <Route path="/icazeler" element={<Permissions />} />
                         <Route path="/bot-monitoring" element={<BotMonitoring />} />
                         <Route path="/hesabatlar" element={<Reports />} />
                         <Route path="/tenzimlemeler" element={<SettingsComponent />} />

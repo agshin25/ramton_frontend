@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import React, { useState } from "react";
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
   MapPin,
   Clock,
   Users,
@@ -13,44 +13,32 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
-} from 'lucide-react';
+  ChevronsRight,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  useGetZonesQuery,
+  useCreateZoneMutation,
+  useUpdateZoneMutation,
+  useDeleteZoneMutation,
+} from "../services/zonesApi";
 
 const Zones = () => {
-  // Sample zones data with Baku districts and other cities
-  const initialZones = [
-    // Baku districts
-    { id: 1, name: 'Bakı Mərkəz', city: 'Bakı', district: 'Mərkəz', deliveryTime: '1-2 saat', courierCount: 5, status: 'Aktiv', description: 'Bakının mərkəzi rayonu' },
-    { id: 2, name: 'Binəqədi', city: 'Bakı', district: 'Binəqədi', deliveryTime: '1-2 saat', courierCount: 3, status: 'Aktiv', description: 'Binəqədi rayonu' },
-    { id: 3, name: 'Nərimanov', city: 'Bakı', district: 'Nərimanov', deliveryTime: '1-2 saat', courierCount: 4, status: 'Aktiv', description: 'Nərimanov rayonu' },
-    { id: 4, name: 'Nəsiyyə', city: 'Bakı', district: 'Nəsiyyə', deliveryTime: '1-2 saat', courierCount: 2, status: 'Aktiv', description: 'Nəsiyyə rayonu' },
-    { id: 5, name: 'Yasamal', city: 'Bakı', district: 'Yasamal', deliveryTime: '1-2 saat', courierCount: 3, status: 'Aktiv', description: 'Yasamal rayonu' },
-    { id: 6, name: 'Xətai', city: 'Bakı', district: 'Xətai', deliveryTime: '1-2 saat', courierCount: 4, status: 'Aktiv', description: 'Xətai rayonu' },
-    { id: 7, name: 'Səbail', city: 'Bakı', district: 'Səbail', deliveryTime: '1-2 saat', courierCount: 2, status: 'Aktiv', description: 'Səbail rayonu' },
-    { id: 8, name: 'Qaradağ', city: 'Bakı', district: 'Qaradağ', deliveryTime: '2-3 saat', courierCount: 1, status: 'Aktiv', description: 'Qaradağ rayonu' },
-    { id: 9, name: 'Xəzər', city: 'Bakı', district: 'Xəzər', deliveryTime: '2-3 saat', courierCount: 2, status: 'Aktiv', description: 'Xəzər rayonu' },
-    { id: 10, name: 'Suraxanı', city: 'Bakı', district: 'Suraxanı', deliveryTime: '2-3 saat', courierCount: 1, status: 'Aktiv', description: 'Suraxanı rayonu' },
-    { id: 11, name: 'Əzizbəyov', city: 'Bakı', district: 'Əzizbəyov', deliveryTime: '2-3 saat', courierCount: 2, status: 'Aktiv', description: 'Əzizbəyov rayonu' },
-    { id: 12, name: 'Sabunçu', city: 'Bakı', district: 'Sabunçu', deliveryTime: '2-3 saat', courierCount: 1, status: 'Aktiv', description: 'Sabunçu rayonu' },
-    { id: 13, name: 'Pirallahı', city: 'Bakı', district: 'Pirallahı', deliveryTime: '3-4 saat', courierCount: 0, status: 'Passiv', description: 'Pirallahı rayonu' },
-    { id: 14, name: 'Abşeron', city: 'Bakı', district: 'Abşeron', deliveryTime: '3-4 saat', courierCount: 1, status: 'Aktiv', description: 'Abşeron rayonu' },
-    
-    // Other cities
-    { id: 15, name: 'Sumqayıt', city: 'Sumqayıt', district: 'Mərkəz', deliveryTime: '2-3 saat', courierCount: 3, status: 'Aktiv', description: 'Sumqayıt şəhəri' },
-    { id: 16, name: 'Gəncə', city: 'Gəncə', district: 'Mərkəz', deliveryTime: '3-4 saat', courierCount: 2, status: 'Aktiv', description: 'Gəncə şəhəri' },
-    { id: 17, name: 'Mingəçevir', city: 'Mingəçevir', district: 'Mərkəz', deliveryTime: '4-5 saat', courierCount: 1, status: 'Aktiv', description: 'Mingəçevir şəhəri' },
-    { id: 18, name: 'Şirvan', city: 'Şirvan', district: 'Mərkəz', deliveryTime: '3-4 saat', courierCount: 1, status: 'Aktiv', description: 'Şirvan şəhəri' },
-    { id: 19, name: 'Naxçıvan', city: 'Naxçıvan', district: 'Mərkəz', deliveryTime: '5-6 saat', courierCount: 0, status: 'Passiv', description: 'Naxçıvan şəhəri' },
-    { id: 20, name: 'Şəki', city: 'Şəki', district: 'Mərkəz', deliveryTime: '4-5 saat', courierCount: 0, status: 'Passiv', description: 'Şəki şəhəri' }
-  ];
+  // API hooks
+  const { data: zonesData, isLoading, isError } = useGetZonesQuery();
+  const [createZone, { isLoading: isCreating }] = useCreateZoneMutation();
+  const [updateZone, { isLoading: isUpdating }] = useUpdateZoneMutation();
+  const [deleteZone, { isLoading: isDeleting }] = useDeleteZoneMutation();
 
-  const [zones, setZones] = useState(initialZones);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Bütün');
-  const [cityFilter, setCityFilter] = useState('Bütün');
+  // Extract zones from API response
+  const zones = zonesData?.data || [];
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Bütün");
+  const [cityFilter, setCityFilter] = useState("Bütün");
   const [currentPage, setCurrentPage] = useState(1);
   const [zonesPerPage] = useState(10);
-  
+
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -58,27 +46,38 @@ const Zones = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedZone, setSelectedZone] = useState(null);
   const [newZone, setNewZone] = useState({
-    name: '',
-    city: 'Bakı',
-    district: 'Mərkəz',
-    deliveryTime: '1-2 saat',
-    status: 'Aktiv',
-    description: ''
+    name: "",
+    avg_delivery_time: "",
+    courier_count: 0,
+    status: "active",
+    description: null,
+    country_id: 1,
+    city_id: 1,
   });
 
-  // Available cities and districts
-  const cities = ['Bakı', 'Sumqayıt', 'Gəncə', 'Mingəçevir', 'Şirvan', 'Naxçıvan', 'Şəki'];
-  const bakuDistricts = ['Mərkəz', 'Binəqədi', 'Nərimanov', 'Nəsiyyə', 'Yasamal', 'Xətai', 'Səbail', 'Qaradağ', 'Xəzər', 'Suraxanı', 'Əzizbəyov', 'Sabunçu', 'Pirallahı', 'Abşeron'];
-  const deliveryTimes = ['1-2 saat', '2-3 saat', '3-4 saat', '4-5 saat', '5-6 saat'];
+  // Toast notification states
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success");
+
+  // Toast notification function
+  const showToastNotification = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
 
   // Filter zones
-  const filteredZones = zones.filter(zone => {
-    const matchesSearch = zone.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         zone.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         zone.district.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'Bütün' || zone.status === statusFilter;
-    const matchesCity = cityFilter === 'Bütün' || zone.city === cityFilter;
-    
+  const filteredZones = zones.filter((zone) => {
+    const matchesSearch =
+      zone.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      zone.city?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "Bütün" || zone.status === statusFilter;
+    const matchesCity =
+      cityFilter === "Bütün" || zone.city?.name === cityFilter;
+
     return matchesSearch && matchesStatus && matchesCity;
   });
 
@@ -89,15 +88,17 @@ const Zones = () => {
   const totalPages = Math.ceil(filteredZones.length / zonesPerPage);
 
   const goToPage = (pageNumber) => setCurrentPage(pageNumber);
-  const goToNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-  const goToPreviousPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+  const goToNextPage = () =>
+    currentPage < totalPages && setCurrentPage(currentPage + 1);
+  const goToPreviousPage = () =>
+    currentPage > 1 && setCurrentPage(currentPage - 1);
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
 
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
@@ -107,94 +108,173 @@ const Zones = () => {
         for (let i = 1; i <= 4; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       } else if (currentPage >= totalPages - 2) {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = totalPages - 3; i <= totalPages; i++) {
           pageNumbers.push(i);
         }
       } else {
         pageNumbers.push(1);
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         for (let i = currentPage - 1; i <= currentPage + 1; i++) {
           pageNumbers.push(i);
         }
-        pageNumbers.push('...');
+        pageNumbers.push("...");
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
   // Helper functions
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Aktiv': return 'bg-green-100 text-green-800';
-      case 'Passiv': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "inactive":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getDeliveryTimeColor = (deliveryTime) => {
-    switch (deliveryTime) {
-      case '1-2 saat': return 'bg-green-100 text-green-800';
-      case '2-3 saat': return 'bg-blue-100 text-blue-800';
-      case '3-4 saat': return 'bg-yellow-100 text-yellow-800';
-      case '4-5 saat': return 'bg-orange-100 text-orange-800';
-      case '5-6 saat': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getDeliveryTimeColor = (avgDeliveryTime) => {
+    const time = parseFloat(avgDeliveryTime);
+    if (time <= 1.5) return "bg-green-100 text-green-800";
+    if (time <= 2.5) return "bg-blue-100 text-blue-800";
+    if (time <= 3.5) return "bg-yellow-100 text-yellow-800";
+    if (time <= 4.5) return "bg-orange-100 text-orange-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  const formatDeliveryTime = (avgDeliveryTime) => {
+    const time = parseFloat(avgDeliveryTime);
+    if (time <= 1.5) return "1-2 saat";
+    if (time <= 2.5) return "2-3 saat";
+    if (time <= 3.5) return "3-4 saat";
+    if (time <= 4.5) return "4-5 saat";
+    return "5-6 saat";
   };
 
   // CRUD functions
-  const handleAddZone = () => {
-    const newId = Math.max(...zones.map(z => z.id)) + 1;
-    const zoneToAdd = {
-      ...newZone,
-      id: newId,
-      courierCount: 0
-    };
-    
-    setZones([...zones, zoneToAdd]);
-    
-    // Reset form
-    setNewZone({
-      name: '',
-      city: 'Bakı',
-      district: 'Mərkəz',
-      deliveryTime: '1-2 saat',
-      status: 'Aktiv',
-      description: ''
-    });
-    setShowAddModal(false);
+  const handleAddZone = async () => {
+    try {
+      const zoneData = {
+        ...newZone,
+        description:
+          newZone.description && newZone.description.trim() === ""
+            ? null
+            : newZone.description,
+      };
+      await createZone(zoneData).unwrap();
+      showToastNotification("Zona uğurla əlavə edildi!", "success");
+      setShowAddModal(false);
+      // Reset form
+      setNewZone({
+        name: "",
+        avg_delivery_time: "",
+        courier_count: 0,
+        status: "active",
+        description: "",
+        country_id: 1,
+        city_id: 1,
+      });
+    } catch (error) {
+      console.error("Zona əlavə edilərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Zona əlavə edilərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
   };
 
-  const handleEditZone = () => {
-    const updatedZones = zones.map(zone => 
-      zone.id === selectedZone.id ? { ...zone, ...newZone } : zone
-    );
-    setZones(updatedZones);
-    setShowEditModal(false);
+  const handleEditZone = async () => {
+    try {
+      // Only send changed fields
+      const zoneData = {};
+
+      // Check if name has changed
+      if (newZone.name !== selectedZone.name) {
+        zoneData.name = newZone.name;
+      }
+
+      // Check if avg_delivery_time has changed
+      if (newZone.avg_delivery_time !== selectedZone.avg_delivery_time) {
+        zoneData.avg_delivery_time = newZone.avg_delivery_time;
+      }
+
+      // Check if courier_count has changed
+      if (newZone.courier_count !== selectedZone.courier_count) {
+        zoneData.courier_count = newZone.courier_count;
+      }
+
+      // Check if status has changed
+      if (newZone.status !== selectedZone.status) {
+        zoneData.status = newZone.status;
+      }
+
+      // Check if description has changed
+      const newDescription =
+        newZone.description && newZone.description.trim() !== ""
+          ? newZone.description
+          : null;
+      if (newDescription !== selectedZone.description) {
+        zoneData.description = newDescription;
+      }
+
+      // Check if country_id has changed
+      if (newZone.country_id !== selectedZone.country_id) {
+        zoneData.country_id = newZone.country_id;
+      }
+
+      // Check if city_id has changed
+      if (newZone.city_id !== selectedZone.city_id) {
+        zoneData.city_id = newZone.city_id;
+      }
+
+      // Only proceed if there are changes
+      if (Object.keys(zoneData).length === 0) {
+        showToastNotification("Heç bir dəyişiklik edilməyib!", "error");
+        return;
+      }
+
+      await updateZone({ id: selectedZone.id, ...zoneData }).unwrap();
+      showToastNotification("Zona uğurla yeniləndi!", "success");
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Zona yenilənərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Zona yenilənərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
   };
 
-  const handleDeleteZone = () => {
-    const updatedZones = zones.filter(zone => zone.id !== selectedZone.id);
-    setZones(updatedZones);
-    setShowDeleteModal(false);
+  const handleDeleteZone = async () => {
+    try {
+      await deleteZone(selectedZone.id).unwrap();
+      showToastNotification("Zona uğurla silindi!", "success");
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Zona silinərkən xəta:", error);
+      const errorMessage =
+        error?.data?.message || "Zona silinərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
   };
 
   const openEditModal = (zone) => {
     setSelectedZone(zone);
     setNewZone({
       name: zone.name,
-      city: zone.city,
-      district: zone.district,
-      deliveryTime: zone.deliveryTime,
+      avg_delivery_time: zone.avg_delivery_time,
+      courier_count: zone.courier_count,
       status: zone.status,
-      description: zone.description
+      description: zone.description || "",
+      country_id: zone.country_id,
+      city_id: zone.city_id,
     });
     setShowEditModal(true);
   };
@@ -211,9 +291,46 @@ const Zones = () => {
 
   // Statistics
   const totalZones = zones.length;
-  const activeZones = zones.filter(zone => zone.status === 'Aktiv').length;
-  const totalCouriers = zones.reduce((sum, zone) => sum + zone.courierCount, 0);
-  const bakuZones = zones.filter(zone => zone.city === 'Bakı').length;
+  const activeZones = zones.filter((zone) => zone.status === "active").length;
+  const totalCouriers = zones.reduce(
+    (sum, zone) => sum + (zone.courier_count || 0),
+    0
+  );
+  const bakuZones = zones.filter((zone) => zone.city?.name === "Baku").length;
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Zonalar yüklənir...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <div className="flex items-center">
+            <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-red-800">
+                Xəta baş verdi
+              </h3>
+              <p className="text-red-600">
+                Zonalar yüklənərkən xəta baş verdi. Zəhmət olmasa səhifəni
+                yeniləyin.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -244,8 +361,12 @@ const Zones = () => {
                 <TrendingUp className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Aktiv Zonalar</p>
-                <p className="text-2xl font-bold text-gray-900">{activeZones}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Aktiv Zonalar
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {activeZones}
+                </p>
               </div>
             </div>
           </div>
@@ -256,8 +377,12 @@ const Zones = () => {
                 <Users className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Ümumi Kuryer</p>
-                <p className="text-2xl font-bold text-gray-900">{totalCouriers}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Ümumi Kuryer
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {totalCouriers}
+                </p>
               </div>
             </div>
           </div>
@@ -268,7 +393,9 @@ const Zones = () => {
                 <MapPin className="w-6 h-6 text-orange-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Bakı Zonaları</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Bakı Zonaları
+                </p>
                 <p className="text-2xl font-bold text-gray-900">{bakuZones}</p>
               </div>
             </div>
@@ -290,7 +417,7 @@ const Zones = () => {
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-4">
               <select
                 value={statusFilter}
@@ -298,21 +425,27 @@ const Zones = () => {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="Bütün">Bütün Statuslar</option>
-                <option value="Aktiv">Aktiv</option>
-                <option value="Passiv">Passiv</option>
+                <option value="active">Aktiv</option>
+                <option value="inactive">Passiv</option>
               </select>
-              
+
               <select
                 value={cityFilter}
                 onChange={(e) => setCityFilter(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="Bütün">Bütün Şəhərlər</option>
-                {cities.map(city => (
-                  <option key={city} value={city}>{city}</option>
+                {[
+                  ...new Set(
+                    zones.map((zone) => zone.city?.name).filter(Boolean)
+                  ),
+                ].map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
                 ))}
               </select>
-              
+
               <button
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -355,27 +488,43 @@ const Zones = () => {
                   <tr key={zone.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{zone.name}</div>
-                        <div className="text-sm text-gray-500">{zone.description}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {zone.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {zone.description || ""}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{zone.city}</div>
-                        <div className="text-sm text-gray-500">{zone.district}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {zone.city?.name || "N/A"}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {zone.country?.name || "N/A"}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDeliveryTimeColor(zone.deliveryTime)}`}>
-                        {zone.deliveryTime}
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getDeliveryTimeColor(
+                          zone.avg_delivery_time
+                        )}`}
+                      >
+                        {formatDeliveryTime(zone.avg_delivery_time)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {zone.courierCount} kuryer
+                      {zone.couriers_count || 0} kuryer
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(zone.status)}`}>
-                        {zone.status}
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          zone.status
+                        )}`}
+                      >
+                        {zone.status === "active" ? "Aktiv" : "Passiv"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -411,9 +560,11 @@ const Zones = () => {
             <div className="bg-white px-6 py-3 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-700">
-                  {indexOfFirstZone + 1}-{Math.min(indexOfLastZone, filteredZones.length)} / {filteredZones.length} zona
+                  {indexOfFirstZone + 1}-
+                  {Math.min(indexOfLastZone, filteredZones.length)} /{" "}
+                  {filteredZones.length} zona
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={goToFirstPage}
@@ -429,24 +580,26 @@ const Zones = () => {
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  
+
                   {getPageNumbers().map((pageNumber, index) => (
                     <button
                       key={index}
-                      onClick={() => typeof pageNumber === 'number' && goToPage(pageNumber)}
-                      disabled={pageNumber === '...'}
+                      onClick={() =>
+                        typeof pageNumber === "number" && goToPage(pageNumber)
+                      }
+                      disabled={pageNumber === "..."}
                       className={`px-3 py-1 text-sm rounded-lg ${
                         pageNumber === currentPage
-                          ? 'bg-blue-600 text-white'
-                          : pageNumber === '...'
-                          ? 'text-gray-400 cursor-default'
-                          : 'text-gray-600 hover:bg-gray-100'
+                          ? "bg-blue-600 text-white"
+                          : pageNumber === "..."
+                          ? "text-gray-400 cursor-default"
+                          : "text-gray-600 hover:bg-gray-100"
                       }`}
                     >
                       {pageNumber}
                     </button>
                   ))}
-                  
+
                   <button
                     onClick={goToNextPage}
                     disabled={currentPage === totalPages}
@@ -473,88 +626,96 @@ const Zones = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Yeni Zona Əlavə Et</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Yeni Zona Əlavə Et
+              </h3>
+              <button
                 onClick={() => setShowAddModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Zona Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Zona Adı
+                  </label>
                   <input
                     type="text"
                     value={newZone.name}
-                    onChange={(e) => setNewZone({...newZone, name: e.target.value})}
+                    onChange={(e) =>
+                      setNewZone({ ...newZone, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Zona adını daxil edin"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Şəhər</label>
-                  <select
-                    value={newZone.city}
-                    onChange={(e) => setNewZone({...newZone, city: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Çatdırılma Vaxtı (saat)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={newZone.avg_delivery_time}
+                    onChange={(e) =>
+                      setNewZone({
+                        ...newZone,
+                        avg_delivery_time: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {cities.map(city => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
+                    placeholder="1.5"
+                  />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rayon</label>
-                  <select
-                    value={newZone.district}
-                    onChange={(e) => setNewZone({...newZone, district: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kuryer Sayı
+                  </label>
+                  <input
+                    type="number"
+                    value={newZone.courier_count}
+                    onChange={(e) =>
+                      setNewZone({
+                        ...newZone,
+                        courier_count: parseInt(e.target.value) || 0,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {newZone.city === 'Bakı' ? (
-                      bakuDistricts.map(district => (
-                        <option key={district} value={district}>{district}</option>
-                      ))
-                    ) : (
-                      <option value="Mərkəz">Mərkəz</option>
-                    )}
-                  </select>
+                    min="0"
+                  />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Vaxtı</label>
-                  <select
-                    value={newZone.deliveryTime}
-                    onChange={(e) => setNewZone({...newZone, deliveryTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {deliveryTimes.map(time => (
-                      <option key={time} value={time}>{time}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
                   <select
                     value={newZone.status}
-                    onChange={(e) => setNewZone({...newZone, status: e.target.value})}
+                    onChange={(e) =>
+                      setNewZone({ ...newZone, status: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="inactive">Passiv</option>
                   </select>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Təsvir
+                  </label>
                   <textarea
-                    value={newZone.description}
-                    onChange={(e) => setNewZone({...newZone, description: e.target.value})}
+                    value={newZone.description || ""}
+                    onChange={(e) =>
+                      setNewZone({ ...newZone, description: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows="3"
                     placeholder="Zona haqqında qısa təsvir"
@@ -562,7 +723,7 @@ const Zones = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowAddModal(false)}
@@ -572,10 +733,10 @@ const Zones = () => {
               </button>
               <button
                 onClick={handleAddZone}
-                disabled={!newZone.name || !newZone.city}
+                disabled={!newZone.name || isCreating}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Əlavə Et
+                {isCreating ? "Əlavə edilir..." : "Əlavə Et"}
               </button>
             </div>
           </div>
@@ -587,88 +748,100 @@ const Zones = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Zonanı Redaktə Et</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Zonanı Redaktə Et
+              </h3>
+              <button
                 onClick={() => setShowEditModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Zona Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Zona Adı
+                  </label>
                   <input
                     type="text"
                     value={newZone.name}
-                    onChange={(e) => setNewZone({...newZone, name: e.target.value})}
+                    onChange={(e) =>
+                      setNewZone({ ...newZone, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Zona adını daxil edin"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Şəhər</label>
-                  <select
-                    value={newZone.city}
-                    onChange={(e) => setNewZone({...newZone, city: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Çatdırılma Vaxtı (saat)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={newZone.avg_delivery_time}
+                    onChange={(e) =>
+                      setNewZone({
+                        ...newZone,
+                        avg_delivery_time: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {cities.map(city => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
+                    placeholder="1.5"
+                  />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rayon</label>
-                  <select
-                    value={newZone.district}
-                    onChange={(e) => setNewZone({...newZone, district: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Kuryer Sayı
+                  </label>
+                  <input
+                    type="number"
+                    value={newZone.courier_count}
+                    onChange={(e) =>
+                      setNewZone({
+                        ...newZone,
+                        courier_count: parseInt(e.target.value) || 0,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {newZone.city === 'Bakı' ? (
-                      bakuDistricts.map(district => (
-                        <option key={district} value={district}>{district}</option>
-                      ))
-                    ) : (
-                      <option value="Mərkəz">Mərkəz</option>
-                    )}
-                  </select>
+                    min="0"
+                  />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Vaxtı</label>
-                  <select
-                    value={newZone.deliveryTime}
-                    onChange={(e) => setNewZone({...newZone, deliveryTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {deliveryTimes.map(time => (
-                      <option key={time} value={time}>{time}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
                   <select
                     value={newZone.status}
-                    onChange={(e) => setNewZone({...newZone, status: e.target.value})}
+                    onChange={(e) =>
+                      setNewZone({ ...newZone, status: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="inactive">Passiv</option>
                   </select>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Təsvir
+                  </label>
                   <textarea
                     value={newZone.description}
-                    onChange={(e) => setNewZone({...newZone, description: e.target.value})}
+                    onChange={(e) =>
+                      setNewZone({
+                        ...newZone,
+                        description:
+                          e.target.value.length > 0 ? e.target.value : null,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows="3"
                     placeholder="Zona haqqında qısa təsvir"
@@ -676,7 +849,7 @@ const Zones = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowEditModal(false)}
@@ -686,10 +859,10 @@ const Zones = () => {
               </button>
               <button
                 onClick={handleEditZone}
-                disabled={!newZone.name || !newZone.city}
+                disabled={!newZone.name || isUpdating}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Yenilə
+                {isUpdating ? "Yenilənir..." : "Yenilə"}
               </button>
             </div>
           </div>
@@ -701,20 +874,24 @@ const Zones = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-800">Zonanı Sil</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Zonanı Sil
+              </h3>
+              <button
                 onClick={() => setShowDeleteModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8 text-red-600" />
               </div>
-              <h4 className="text-lg font-medium text-gray-800 mb-2">Zonanı silmək istədiyinizə əminsiniz?</h4>
+              <h4 className="text-lg font-medium text-gray-800 mb-2">
+                Zonanı silmək istədiyinizə əminsiniz?
+              </h4>
               <p className="text-gray-600">
                 <strong>{selectedZone?.name}</strong>
               </p>
@@ -722,7 +899,7 @@ const Zones = () => {
                 Bu əməliyyat geri alına bilməz.
               </p>
             </div>
-            
+
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
@@ -732,9 +909,10 @@ const Zones = () => {
               </button>
               <button
                 onClick={handleDeleteZone}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sil
+                {isDeleting ? "Silinir..." : "Sil"}
               </button>
             </div>
           </div>
@@ -746,15 +924,17 @@ const Zones = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Zona Detalları</h3>
-              <button 
+              <h3 className="text-xl font-semibold text-gray-800">
+                Zona Detalları
+              </h3>
+              <button
                 onClick={() => setShowViewModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-6">
                 {/* Basic Information */}
@@ -766,19 +946,29 @@ const Zones = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Zona Adı</p>
-                      <p className="font-medium text-gray-900">{selectedZone?.name}</p>
+                      <p className="font-medium text-gray-900">
+                        {selectedZone?.name}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Şəhər</p>
-                      <p className="font-medium text-gray-900">{selectedZone?.city}</p>
+                      <p className="font-medium text-gray-900">
+                        {selectedZone?.city}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Rayon</p>
-                      <p className="font-medium text-gray-900">{selectedZone?.district}</p>
+                      <p className="font-medium text-gray-900">
+                        {selectedZone?.district}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Status</p>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(selectedZone?.status)}`}>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          selectedZone?.status
+                        )}`}
+                      >
                         {selectedZone?.status}
                       </span>
                     </div>
@@ -794,13 +984,19 @@ const Zones = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Çatdırılma Vaxtı</p>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDeliveryTimeColor(selectedZone?.deliveryTime)}`}>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${getDeliveryTimeColor(
+                          selectedZone?.deliveryTime
+                        )}`}
+                      >
                         {selectedZone?.deliveryTime}
                       </span>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Kuryer Sayı</p>
-                      <p className="font-medium text-gray-900">{selectedZone?.courierCount} kuryer</p>
+                      <p className="font-medium text-gray-900">
+                        {selectedZone?.courierCount} kuryer
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -817,8 +1013,28 @@ const Zones = () => {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50">
+          <div
+            className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
+              toastType === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            {toastType === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Zones; 
+export default Zones;

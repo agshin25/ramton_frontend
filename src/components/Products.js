@@ -10,81 +10,44 @@ import {
   DollarSign,
   TrendingUp,
   Eye,
-  X
+  X,
+  CheckCircle,
+  AlertTriangle,
 } from 'lucide-react';
-import { employees } from './Admin';
+import {
+  useGetProductsQuery,
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation,
+} from "../services/productsApi";
+import { useGetCategoriesQuery } from "../services/categoriesApi";
+import { useGetAdminsQuery } from "../services/adminsApi";
 
-// Products data that can be used across components
-export const products = [
-  {
-    id: 1,
-    name: 'iPhone 15 Pro',
-    category: 'Telefon',
-    price: 3250,
-    status: 'Aktiv',
-    totalSales: 25,
-    stock: 15,
-    image: '📱',
-    employee: 'Əli Məmmədov'
-  },
-  {
-    id: 2,
-    name: 'MacBook Air M2',
-    category: 'Kompyuter',
-    price: 2890,
-    status: 'Aktiv',
-    totalSales: 18,
-    stock: 8,
-    image: '💻',
-    employee: 'Aysu Həsənli'
-  },
-  {
-    id: 3,
-    name: 'Apple Watch Series 9',
-    category: 'Aksesuar',
-    price: 1450,
-    status: 'Aktiv',
-    totalSales: 15,
-    stock: 12,
-    image: '⌚',
-    employee: 'Fatma Əliyeva'
-  },
-  {
-    id: 4,
-    name: 'iPad Pro 12.9"',
-    category: 'Planşet',
-    price: 2200,
-    status: 'Aktiv',
-    totalSales: 12,
-    stock: 5,
-    image: '📱',
-    employee: 'Rəşad Əhmədov'
-  },
-  {
-    id: 5,
-    name: 'AirPods Pro 2',
-    category: 'Aksesuar',
-    price: 850,
-    status: 'Passiv',
-    totalSales: 30,
-    stock: 0,
-    image: '🎧',
-    employee: 'Leyla Məmmədli'
-  },
-  {
-    id: 6,
-    name: 'Samsung Galaxy S24',
-    category: 'Telefon',
-    price: 2800,
-    status: 'Aktiv',
-    totalSales: 8,
-    stock: 20,
-    image: '📱',
-    employee: 'Əli Məmmədov'
-  }
-];
+// Status enum based on backend Status
+const PRODUCT_STATUS = {
+  ACTIVE: "active",
+  INACTIVE: "deactive", 
+  PASSIV: "passiv",
+};
 
 const Products = () => {
+  // API hooks
+  const { data: productsData, isLoading, isError } = useGetProductsQuery();
+  const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
+  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+  const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
+  
+  const { data: categoriesData } = useGetCategoriesQuery();
+  const { data: adminsData } = useGetAdminsQuery();
+
+  // Extract data from API responses
+  const products = productsData?.data || [];
+  const categories = categoriesData?.data || [];
+  const admins = adminsData?.data || [];
+  
+  // Filter employees (role_type = 'employee')
+  const employees = admins.filter(admin => admin.roles[0].role_type === 'employee');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -94,22 +57,55 @@ const Products = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [productsList, setProductsList] = useState(products);
   const [newProduct, setNewProduct] = useState({
     name: '',
-    category: '',
+    description: '',
     price: 0,
-    status: 'Aktiv',
-    totalSales: 0,
     stock: 0,
-    image: '📱',
-    employee: ''
+    status: 'active',
+    responsible_employee_id: '',
+    category_id: ''
   });
+
+  // Toast notification states
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success");
+
+  // Toast notification function
+  const showToastNotification = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
 
 
 
   const getStatusColor = (status) => {
-    return status === 'Aktiv' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "deactive":
+        return "bg-red-100 text-red-800";
+      case "passiv":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case "active":
+        return "Aktiv";
+      case "deactive":
+        return "Qeyri-aktiv";
+      case "passiv":
+        return "Passiv";
+      default:
+        return status;
+    }
   };
 
   const getStockColor = (stock) => {
@@ -118,59 +114,121 @@ const Products = () => {
     return 'text-green-600';
   };
 
-  const filteredProducts = productsList.filter(product => {
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'N/A';
+  };
+
+  const getEmployeeName = (employeeId) => {
+    const employee = employees.find(emp => emp.id === employeeId);
+    console.log(employee);
+    return employee ? `${employee.first_name} ${employee.last_name}` : 'N/A';
+  };
+
+  const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+                         product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         getCategoryName(product.category_id).toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || product.category_id.toString() === categoryFilter;
     const matchesStatus = statusFilter === 'all' || product.status === statusFilter;
-    const matchesEmployee = employeeFilter === 'all' || product.employee === employeeFilter;
+    const matchesEmployee = employeeFilter === 'all' || product.responsible_employee_id.toString() === employeeFilter;
     
     return matchesSearch && matchesCategory && matchesStatus && matchesEmployee;
   });
 
-  const categories = [...new Set(productsList.map(p => p.category))];
-
   // CRUD Functions
-  const handleAddProduct = () => {
-    const newId = Math.max(...productsList.map(p => p.id)) + 1;
-    const productToAdd = {
-      ...newProduct,
-      id: newId
-    };
-    
-    setProductsList([...productsList, productToAdd]);
-    
-    // Reset form
-    setNewProduct({
-      name: '',
-      category: '',
-      price: 0,
-      status: 'Aktiv',
-      totalSales: 0,
-      stock: 0,
-      image: '📱',
-      employee: ''
-    });
-    setShowAddModal(false);
-  };
-
-  const handleEditProduct = () => {
-    if (selectedProduct) {
-      const updatedProducts = productsList.map(product =>
-        product.id === selectedProduct.id ? { ...selectedProduct, ...newProduct } : product
-      );
-      setProductsList(updatedProducts);
-      setShowEditModal(false);
-      setSelectedProduct(null);
+  const handleAddProduct = async () => {
+    try {
+      const productData = {
+        ...newProduct,
+        description: newProduct.description && newProduct.description.trim() !== "" ? newProduct.description : null,
+      };
+      await createProduct(productData).unwrap();
+      showToastNotification("Məhsul uğurla əlavə edildi!", "success");
+      setShowAddModal(false);
+      // Reset form
+      setNewProduct({
+        name: '',
+        description: '',
+        price: 0,
+        stock: 0,
+        status: 'active',
+        responsible_employee_id: '',
+        category_id: ''
+      });
+    } catch (error) {
+      console.error("Məhsul əlavə edilərkən xəta:", error);
+      const errorMessage = error?.data?.message || "Məhsul əlavə edilərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
     }
   };
 
-  const handleDeleteProduct = () => {
-    if (selectedProduct) {
-      const updatedProducts = productsList.filter(product => product.id !== selectedProduct.id);
-      setProductsList(updatedProducts);
+  const handleEditProduct = async () => {
+    try {
+      // Only send changed fields
+      const productData = {};
+
+      // Check if name has changed
+      if (newProduct.name !== selectedProduct.name) {
+        productData.name = newProduct.name;
+      }
+
+      // Check if description has changed
+      const newDescription = newProduct.description && newProduct.description.trim() !== "" ? newProduct.description : null;
+      if (newDescription !== selectedProduct.description) {
+        productData.description = newDescription;
+      }
+
+      // Check if price has changed
+      if (newProduct.price !== selectedProduct.price) {
+        productData.price = newProduct.price;
+      }
+
+      // Check if stock has changed
+      if (newProduct.stock !== selectedProduct.stock) {
+        productData.stock = newProduct.stock;
+      }
+
+      // Check if status has changed
+      if (newProduct.status !== selectedProduct.status) {
+        productData.status = newProduct.status;
+      }
+
+      // Check if responsible_employee_id has changed
+      if (newProduct.responsible_employee_id !== selectedProduct.responsible_employee_id) {
+        productData.responsible_employee_id = newProduct.responsible_employee_id;
+      }
+
+      // Check if category_id has changed
+      if (newProduct.category_id !== selectedProduct.category_id) {
+        productData.category_id = newProduct.category_id;
+      }
+
+      // Only proceed if there are changes
+      if (Object.keys(productData).length === 0) {
+        showToastNotification("Heç bir dəyişiklik edilməyib!", "error");
+        return;
+      }
+
+      await updateProduct({ id: selectedProduct.id, ...productData }).unwrap();
+      showToastNotification("Məhsul uğurla yeniləndi!", "success");
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Məhsul yenilənərkən xəta:", error);
+      const errorMessage = error?.data?.message || "Məhsul yenilənərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    try {
+      await deleteProduct(selectedProduct.id).unwrap();
+      showToastNotification("Məhsul uğurla silindi!", "success");
       setShowDeleteModal(false);
-      setSelectedProduct(null);
+    } catch (error) {
+      console.error("Məhsul silinərkən xəta:", error);
+      const errorMessage = error?.data?.message || "Məhsul silinərkən xəta baş verdi!";
+      showToastNotification(errorMessage, "error");
     }
   };
 
@@ -178,13 +236,12 @@ const Products = () => {
     setSelectedProduct(product);
     setNewProduct({
       name: product.name,
-      category: product.category,
+      description: product.description || '',
       price: product.price,
       status: product.status,
-      totalSales: product.totalSales,
       stock: product.stock,
-      image: product.image,
-      employee: product.employee
+      responsible_employee_id: product.responsible_employee_id,
+      category_id: product.category_id
     });
     setShowEditModal(true);
   };
@@ -198,6 +255,40 @@ const Products = () => {
     setSelectedProduct(product);
     setShowViewModal(true);
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Məhsullar yüklənir...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <div className="flex items-center">
+            <AlertTriangle className="w-6 h-6 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-medium text-red-800">
+                Xəta baş verdi
+              </h3>
+              <p className="text-red-600">
+                Məhsullar yüklənərkən xəta baş verdi. Zəhmət olmasa səhifəni
+                yeniləyin.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
@@ -249,7 +340,7 @@ const Products = () => {
             >
               <option value="all">Bütün Kateqoriyalar</option>
               {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
+                <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
             
@@ -259,8 +350,9 @@ const Products = () => {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">Bütün Statuslar</option>
-              <option value="Aktiv">Aktiv</option>
-              <option value="Passiv">Passiv</option>
+              <option value="active">Aktiv</option>
+              <option value="inactive">Qeyri-aktiv</option>
+              <option value="passiv">Passiv</option>
             </select>
             
             <select
@@ -270,8 +362,8 @@ const Products = () => {
             >
               <option value="all">Bütün Əməkdaşlar</option>
               {employees.map((employee) => (
-                <option key={employee.id} value={employee.name}>
-                  {employee.name} - {employee.role}
+                <option key={employee.id} value={employee.id}>
+                  {employee.first_name} {employee.last_name}
                 </option>
               ))}
             </select>
@@ -289,19 +381,22 @@ const Products = () => {
               <div key={product.id} className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-xl">
-                    {product.image}
+                    📦
                   </div>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(product.status)}`}>
-                    {product.status}
+                    {getStatusText(product.status)}
                   </span>
                 </div>
                 
                 <h3 className="font-semibold text-gray-800 text-lg mb-2">{product.name}</h3>
+                {product.description && (
+                  <p className="text-sm text-gray-600 mb-3">{product.description}</p>
+                )}
                 
                 <div className="space-y-3 mb-4">
                   <div className="flex items-center space-x-2">
                     <Tag className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">{product.category}</span>
+                    <span className="text-sm text-gray-600">{getCategoryName(product.category_id)}</span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -311,7 +406,7 @@ const Products = () => {
                   
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">{product.totalSales} ədəd satılıb</span>
+                    <span className="text-sm text-gray-600">{product.orders_count || 0} ədəd satılıb</span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -322,7 +417,7 @@ const Products = () => {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">👤 {product.employee}</span>
+                    <span className="text-sm text-gray-600">👤 {getEmployeeName(product.responsible_employee.id)}</span>
                   </div>
                 </div>
                 
@@ -361,19 +456,19 @@ const Products = () => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-600">Ən Çox Satan</p>
-                <p className="text-lg font-semibold text-gray-800">iPhone 15 Pro</p>
-                <p className="text-sm text-green-600">25 ədəd</p>
+                <p className="text-sm text-gray-600">Ümumi Məhsul</p>
+                <p className="text-lg font-semibold text-gray-800">{products.length}</p>
+                <p className="text-sm text-blue-600">Məhsul sayı</p>
               </div>
               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-600">Ümumi Satış</p>
-                <p className="text-lg font-semibold text-gray-800">108 ədəd</p>
-                <p className="text-sm text-blue-600">Bu ay</p>
+                <p className="text-sm text-gray-600">Aktiv Məhsul</p>
+                <p className="text-lg font-semibold text-gray-800">{products.filter(p => p.status === 'active').length}</p>
+                <p className="text-sm text-green-600">Aktiv status</p>
               </div>
               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-600">Ümumi Gəlir</p>
-                <p className="text-lg font-semibold text-gray-800">₼12,450</p>
-                <p className="text-sm text-green-600">Bu ay</p>
+                <p className="text-sm text-gray-600">Ümumi Stok</p>
+                <p className="text-lg font-semibold text-gray-800">{products.reduce((sum, p) => sum + p.stock, 0)}</p>
+                <p className="text-sm text-purple-600">Stok miqdarı</p>
               </div>
             </div>
           </div>
@@ -397,7 +492,7 @@ const Products = () => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Məhsul Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Məhsul Adı *</label>
                   <input
                     type="text"
                     value={newProduct.name}
@@ -408,35 +503,44 @@ const Products = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya</label>
-                  <select
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <textarea
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Kateqoriya seçin</option>
-                    <option value="Telefon">Telefon</option>
-                    <option value="Kompyuter">Kompyuter</option>
-                    <option value="Planşet">Planşet</option>
-                    <option value="Aksesuar">Aksesuar</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qiymət (₼)</label>
-                  <input
-                    type="number"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
+                    rows="3"
+                    placeholder="Məhsul haqqında təsvir"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Stok Miqdarı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya *</label>
+                  <select
+                    value={newProduct.category_id}
+                    onChange={(e) => setNewProduct({...newProduct, category_id: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Kateqoriya seçin</option>
+                    {categories.map(category => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Qiymət (₼) *</label>
+                  <input
+                    type="number"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({...newProduct, price: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Stok Miqdarı *</label>
                   <input
                     type="number"
                     value={newProduct.stock}
@@ -448,44 +552,29 @@ const Products = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
                   <select
                     value={newProduct.status}
                     onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="deactive">Qeyri-aktiv</option>
+                    <option value="passiv">Passiv</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İkon</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Məsul Əməkdaş *</label>
                   <select
-                    value={newProduct.image}
-                    onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="📱">📱 Telefon</option>
-                    <option value="💻">💻 Kompyuter</option>
-                    <option value="📱">📱 Planşet</option>
-                    <option value="⌚">⌚ Saat</option>
-                    <option value="🎧">🎧 Qulaqlıq</option>
-                    <option value="📷">📷 Kamera</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Məsul Əməkdaş</label>
-                  <select
-                    value={newProduct.employee}
-                    onChange={(e) => setNewProduct({...newProduct, employee: e.target.value})}
+                    value={newProduct.responsible_employee_id}
+                    onChange={(e) => setNewProduct({...newProduct, responsible_employee_id: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Əməkdaş seçin</option>
                     {employees.map((employee) => (
-                      <option key={employee.id} value={employee.name}>
-                        {employee.name} - {employee.role}
+                      <option key={employee.id} value={employee.id}>
+                        {employee.first_name} {employee.last_name}
                       </option>
                     ))}
                   </select>
@@ -502,10 +591,10 @@ const Products = () => {
               </button>
               <button
                 onClick={handleAddProduct}
-                disabled={!newProduct.name || !newProduct.category || !newProduct.employee}
+                disabled={!newProduct.name || !newProduct.category_id || !newProduct.responsible_employee_id || isCreating}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Əlavə Et
+                {isCreating ? "Əlavə edilir..." : "Əlavə Et"}
               </button>
             </div>
           </div>
@@ -529,7 +618,7 @@ const Products = () => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Məhsul Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Məhsul Adı *</label>
                   <input
                     type="text"
                     value={newProduct.name}
@@ -540,35 +629,44 @@ const Products = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya</label>
-                  <select
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <textarea
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Kateqoriya seçin</option>
-                    <option value="Telefon">Telefon</option>
-                    <option value="Kompyuter">Kompyuter</option>
-                    <option value="Planşet">Planşet</option>
-                    <option value="Aksesuar">Aksesuar</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qiymət (₼)</label>
-                  <input
-                    type="number"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
+                    rows="3"
+                    placeholder="Məhsul haqqında təsvir"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Stok Miqdarı</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya *</label>
+                  <select
+                    value={newProduct.category_id}
+                    onChange={(e) => setNewProduct({...newProduct, category_id: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Kateqoriya seçin</option>
+                    {categories.map(category => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Qiymət (₼) *</label>
+                  <input
+                    type="number"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({...newProduct, price: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Stok Miqdarı *</label>
                   <input
                     type="number"
                     value={newProduct.stock}
@@ -580,44 +678,29 @@ const Products = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
                   <select
                     value={newProduct.status}
                     onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="deactive">Qeyri-aktiv</option>
+                    <option value="passiv">Passiv</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İkon</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Məsul Əməkdaş *</label>
                   <select
-                    value={newProduct.image}
-                    onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="📱">📱 Telefon</option>
-                    <option value="💻">💻 Kompyuter</option>
-                    <option value="📱">📱 Planşet</option>
-                    <option value="⌚">⌚ Saat</option>
-                    <option value="🎧">🎧 Qulaqlıq</option>
-                    <option value="📷">📷 Kamera</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Məsul Əməkdaş</label>
-                  <select
-                    value={newProduct.employee}
-                    onChange={(e) => setNewProduct({...newProduct, employee: e.target.value})}
+                    value={newProduct.responsible_employee_id}
+                    onChange={(e) => setNewProduct({...newProduct, responsible_employee_id: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Əməkdaş seçin</option>
                     {employees.map((employee) => (
-                      <option key={employee.id} value={employee.name}>
-                        {employee.name} - {employee.role}
+                      <option key={employee.id} value={employee.id}>
+                        {employee.first_name} {employee.last_name}
                       </option>
                     ))}
                   </select>
@@ -634,10 +717,10 @@ const Products = () => {
               </button>
               <button
                 onClick={handleEditProduct}
-                disabled={!newProduct.name || !newProduct.category || !newProduct.employee}
+                disabled={!newProduct.name || !newProduct.category_id || !newProduct.responsible_employee_id || isUpdating}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Yenilə
+                {isUpdating ? "Yenilənir..." : "Yenilə"}
               </button>
             </div>
           </div>
@@ -664,7 +747,7 @@ const Products = () => {
               </div>
               <h4 className="text-lg font-medium text-gray-800 mb-2">Məhsulu silmək istədiyinizə əminsiniz?</h4>
               <p className="text-gray-600">
-                <strong>{selectedProduct?.name}</strong> - {selectedProduct?.category}
+                <strong>{selectedProduct?.name}</strong> - {getCategoryName(selectedProduct?.category_id)}
               </p>
               <p className="text-sm text-gray-500 mt-2">
                 Bu əməliyyat geri alına bilməz.
@@ -680,9 +763,10 @@ const Products = () => {
               </button>
               <button
                 onClick={handleDeleteProduct}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sil
+                {isDeleting ? "Silinir..." : "Sil"}
               </button>
             </div>
           </div>
@@ -710,13 +794,13 @@ const Products = () => {
                   <div className="bg-gradient-to-r from-blue-50 to-purple-100 p-4 rounded-xl">
                     <div className="flex items-center space-x-4">
                       <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl">
-                        {selectedProduct.image}
+                        📦
                       </div>
                       <div>
                         <h4 className="text-xl font-semibold text-gray-800">{selectedProduct.name}</h4>
-                        <p className="text-gray-600">{selectedProduct.category}</p>
+                        <p className="text-gray-600">{getCategoryName(selectedProduct.category_id)}</p>
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedProduct.status)}`}>
-                          {selectedProduct.status}
+                          {getStatusText(selectedProduct.status)}
                         </span>
                       </div>
                     </div>
@@ -752,11 +836,11 @@ const Products = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-600">Ümumi Satış</p>
-                        <p className="text-lg font-semibold text-gray-800">{selectedProduct.totalSales} ədəd</p>
+                        <p className="text-lg font-semibold text-gray-800">{selectedProduct.orders_count || 0} ədəd</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Ümumi Gəlir</p>
-                        <p className="text-lg font-semibold text-green-600">₼{(selectedProduct.price * selectedProduct.totalSales).toFixed(2)}</p>
+                        <p className="text-lg font-semibold text-green-600">₼{((selectedProduct.price || 0) * (selectedProduct.orders_count || 0)).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
@@ -767,8 +851,16 @@ const Products = () => {
                       <span className="text-lg">👤</span>
                       <h5 className="font-medium text-gray-800">Məsul Əməkdaş</h5>
                     </div>
-                    <p className="text-gray-700">{selectedProduct.employee}</p>
+                    <p className="text-gray-700">{getEmployeeName(selectedProduct.responsible_employee_id)}</p>
                   </div>
+
+                  {/* Description */}
+                  {selectedProduct.description && (
+                    <div className="bg-gray-50 p-4 rounded-xl">
+                      <h5 className="font-medium text-gray-800 mb-3">Təsvir</h5>
+                      <p className="text-gray-700">{selectedProduct.description}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -790,6 +882,26 @@ const Products = () => {
                 Redaktə Et
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50">
+          <div
+            className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
+              toastType === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            {toastType === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span>{toastMessage}</span>
           </div>
         </div>
       )}
