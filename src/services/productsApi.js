@@ -9,6 +9,9 @@ export const productsApi = createApi({
     getProducts: builder.query({
       query: () => "/products",
       providesTags: ["Products"],
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
     }),
 
     createProduct: builder.mutation({

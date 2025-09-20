@@ -15,6 +15,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Check,
+  Clock,
 } from "lucide-react";
 import {
   useGetRolesQuery,
@@ -43,7 +44,7 @@ const ROLE_STATUS = {
 
 const Roles = () => {
   // API hooks
-  const { data: rolesData, isLoading, isError } = useGetRolesQuery();
+  const { data: rolesData, isLoading, isError, refetch } = useGetRolesQuery();
   const [createRole, { isLoading: isCreating }] = useCreateRoleMutation();
   const [updateRole, { isLoading: isUpdating }] = useUpdateRoleMutation();
   const [deleteRole, { isLoading: isDeleting }] = useDeleteRoleMutation();
@@ -54,7 +55,6 @@ const Roles = () => {
   // State management
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [roleTypeFilter, setRoleTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rolesPerPage] = useState(10);
 
@@ -67,22 +67,41 @@ const Roles = () => {
   const [newRole, setNewRole] = useState({
     name: "",
     description: "",
-    role_type: "",
     permissions: [],
     status: "active",
   });
+
+  // Reset form function
+  const resetForm = () => {
+    setNewRole({
+      name: "",
+      description: "",
+      permissions: [],
+      status: "active",
+    });
+    setErrors({}); // Clear errors when resetting form
+  };
 
   // Toast notification states
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
+  const [errors, setErrors] = useState({});
 
   // Toast notification function
   const showToastNotification = (message, type = "success") => {
     setToastMessage(message);
     setToastType(type);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    setTimeout(() => setShowToast(false), 5000);
+  };
+
+  // Error message handler
+  const getErrorMessage = (error) => {
+    if (error?.data?.errors) {
+      return Object.values(error.data.errors).flat().join(", ");
+    }
+    return error?.data?.message || "Xəta baş verdi!";
   };
 
   // Filter roles
@@ -92,10 +111,8 @@ const Roles = () => {
       role.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       statusFilter === "all" || role.status === statusFilter;
-    const matchesRoleType =
-      roleTypeFilter === "all" || role.role_type === roleTypeFilter;
 
-    return matchesSearch && matchesStatus && matchesRoleType;
+    return matchesSearch && matchesStatus;
   });
 
   // Pagination
@@ -174,31 +191,6 @@ const Roles = () => {
     }
   };
 
-  const getRoleTypeColor = (roleType) => {
-    switch (roleType) {
-      case "admin":
-        return "bg-purple-100 text-purple-800";
-      case "employee":
-        return "bg-blue-100 text-blue-800";
-      case "courier":
-        return "bg-orange-100 text-orange-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getRoleTypeText = (roleType) => {
-    switch (roleType) {
-      case "admin":
-        return "Admin";
-      case "employee":
-        return "Əməkdaş";
-      case "courier":
-        return "Kuryer";
-      default:
-        return roleType;
-    }
-  };
 
   const getPermissionText = (permission) => {
     switch (permission) {
@@ -224,6 +216,7 @@ const Roles = () => {
   // CRUD functions
   const handleAddRole = async () => {
     try {
+      setErrors({});
       const roleData = {
         ...newRole,
         description:
@@ -234,24 +227,30 @@ const Roles = () => {
       await createRole(roleData).unwrap();
       showToastNotification("Rol uğurla əlavə edildi!", "success");
       setShowAddModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
       // Reset form
       setNewRole({
         name: "",
         description: "",
-        role_type: "",
         permissions: [],
         status: "active",
       });
     } catch (error) {
       console.error("Rol əlavə edilərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Rol əlavə edilərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        // Also show toaster for validation errors
+        showToastNotification("Zəhmət olmasa bütün xətaları düzəldin!", "error");
+      } else {
+        showToastNotification(getErrorMessage(error), "error");
+      }
     }
   };
 
   const handleEditRole = async () => {
     try {
+      setErrors({});
       // Only send changed fields
       const roleData = {};
 
@@ -267,11 +266,6 @@ const Roles = () => {
           : null;
       if (newDescription !== selectedRole.description) {
         roleData.description = newDescription;
-      }
-
-      // Check if role_type has changed
-      if (newRole.role_type !== selectedRole.role_type) {
-        roleData.role_type = newRole.role_type;
       }
 
       // Check if permissions have changed
@@ -301,11 +295,17 @@ const Roles = () => {
       await updateRole({ id: selectedRole.id, ...roleData }).unwrap();
       showToastNotification("Rol uğurla yeniləndi!", "success");
       setShowEditModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
       console.error("Rol yenilənərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Rol yenilənərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        // Also show toaster for validation errors
+        showToastNotification("Zəhmət olmasa bütün xətaları düzəldin!", "error");
+      } else {
+        showToastNotification(getErrorMessage(error), "error");
+      }
     }
   };
 
@@ -314,11 +314,11 @@ const Roles = () => {
       await deleteRole(selectedRole.id).unwrap();
       showToastNotification("Rol uğurla silindi!", "success");
       setShowDeleteModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
       console.error("Rol silinərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Rol silinərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
+      showToastNotification(getErrorMessage(error), "error");
     }
   };
 
@@ -327,10 +327,10 @@ const Roles = () => {
     setNewRole({
       name: role.name,
       description: role.description || "",
-      role_type: role.role_type,
       permissions: role.permissions || [],
       status: role.status,
     });
+    setErrors({}); // Clear errors when opening modal
     setShowEditModal(true);
   };
 
@@ -376,10 +376,8 @@ const Roles = () => {
   // Statistics
   const totalRoles = roles.length;
   const activeRoles = roles.filter((role) => role.status === "active").length;
-  const adminRoles = roles.filter((role) => role.role_type === "admin").length;
-  const employeeRoles = roles.filter(
-    (role) => role.role_type === "employee"
-  ).length;
+  const inactiveRoles = roles.filter((role) => role.status === "deactive").length;
+  const passiveRoles = roles.filter((role) => role.status === "passiv").length;
 
   // Loading state
   if (isLoading) {
@@ -460,29 +458,29 @@ const Roles = () => {
 
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="w-6 h-6 text-purple-600" />
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">
-                  Admin Rolları
+                  Qeyri-aktiv Rollar
                 </p>
-                <p className="text-2xl font-bold text-gray-900">{adminRoles}</p>
+                <p className="text-2xl font-bold text-gray-900">{inactiveRoles}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Users className="w-6 h-6 text-orange-600" />
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <Clock className="w-6 h-6 text-yellow-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">
-                  Əməkdaş Rolları
+                  Passiv Rollar
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {employeeRoles}
+                  {passiveRoles}
                 </p>
               </div>
             </div>
@@ -517,19 +515,11 @@ const Roles = () => {
                 <option value="deactive">Qeyri-aktiv</option>
               </select>
 
-              <select
-                value={roleTypeFilter}
-                onChange={(e) => setRoleTypeFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">Bütün Rollar</option>
-                <option value="admin">Admin</option>
-                <option value="employee">Əməkdaş</option>
-                <option value="courier">Kuryer</option>
-              </select>
-
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -550,9 +540,6 @@ const Roles = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Təsvir
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rol Tipi
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     İcazələr
@@ -580,15 +567,6 @@ const Roles = () => {
                       <div className="text-sm text-gray-900 max-w-xs truncate">
                         {role.description || "Təsvir yoxdur"}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleTypeColor(
-                          role.role_type
-                        )}`}
-                      >
-                        {getRoleTypeText(role.role_type)}
-                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
@@ -741,9 +719,12 @@ const Roles = () => {
                     onChange={(e) =>
                       setNewRole({ ...newRole, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Rol adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
 
                 <div>
@@ -755,29 +736,15 @@ const Roles = () => {
                     onChange={(e) =>
                       setNewRole({ ...newRole, description: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Rol haqqında təsvir"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rol Tipi *
-                  </label>
-                  <select
-                    value={newRole.role_type}
-                    onChange={(e) =>
-                      setNewRole({ ...newRole, role_type: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Rol tipi seçin</option>
-                    <option value="admin">Admin</option>
-                    <option value="employee">Əməkdaş</option>
-                    <option value="courier">Kuryer</option>
-                  </select>
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -788,19 +755,24 @@ const Roles = () => {
                     onChange={(e) =>
                       setNewRole({ ...newRole, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
                     <option value="passiv">Passiv</option>
                     <option value="deactive">Qeyri-aktiv</option>
                   </select>
+                  {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status[0]}</p>}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     İcazələr *
                   </label>
-                  <div className="border border-gray-300 rounded-lg p-4">
+                  <div className={`border rounded-lg p-4 ${
+                    errors.permissions ? 'border-red-500' : 'border-gray-300'
+                  }`}>
                     <div className="flex gap-2 mb-4">
                       <button
                         type="button"
@@ -838,6 +810,7 @@ const Roles = () => {
                       ))}
                     </div>
                   </div>
+                  {errors.permissions && <p className="text-red-500 text-xs mt-1">{errors.permissions[0]}</p>}
                 </div>
               </div>
             </div>
@@ -851,13 +824,7 @@ const Roles = () => {
               </button>
               <button
                 onClick={handleAddRole}
-                disabled={
-                  !newRole.name ||
-                  !newRole.role_type ||
-                  newRole.permissions.length === 0 ||
-                  isCreating
-                }
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {isCreating ? "Əlavə edilir..." : "Əlavə Et"}
               </button>
@@ -894,9 +861,12 @@ const Roles = () => {
                     onChange={(e) =>
                       setNewRole({ ...newRole, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Rol adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
 
                 <div>
@@ -908,29 +878,15 @@ const Roles = () => {
                     onChange={(e) =>
                       setNewRole({ ...newRole, description: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Rol haqqında təsvir"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rol Tipi *
-                  </label>
-                  <select
-                    value={newRole.role_type}
-                    onChange={(e) =>
-                      setNewRole({ ...newRole, role_type: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Rol tipi seçin</option>
-                    <option value="admin">Admin</option>
-                    <option value="employee">Əməkdaş</option>
-                    <option value="courier">Kuryer</option>
-                  </select>
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -941,19 +897,24 @@ const Roles = () => {
                     onChange={(e) =>
                       setNewRole({ ...newRole, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
                     <option value="passiv">Passiv</option>
                     <option value="deactive">Qeyri-aktiv</option>
                   </select>
+                  {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status[0]}</p>}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     İcazələr *
                   </label>
-                  <div className="border border-gray-300 rounded-lg p-4">
+                  <div className={`border rounded-lg p-4 ${
+                    errors.permissions ? 'border-red-500' : 'border-gray-300'
+                  }`}>
                     <div className="flex gap-2 mb-4">
                       <button
                         type="button"
@@ -991,6 +952,7 @@ const Roles = () => {
                       ))}
                     </div>
                   </div>
+                  {errors.permissions && <p className="text-red-500 text-xs mt-1">{errors.permissions[0]}</p>}
                 </div>
               </div>
             </div>
@@ -1004,13 +966,7 @@ const Roles = () => {
               </button>
               <button
                 onClick={handleEditRole}
-                disabled={
-                  !newRole.name ||
-                  !newRole.role_type ||
-                  newRole.permissions.length === 0 ||
-                  isUpdating
-                }
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 {isUpdating ? "Yenilənir..." : "Yenilə"}
               </button>
@@ -1100,16 +1056,6 @@ const Roles = () => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Rol Tipi</p>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleTypeColor(
-                            selectedRole.role_type
-                          )}`}
-                        >
-                          {getRoleTypeText(selectedRole.role_type)}
-                        </span>
-                      </div>
-                      <div>
                         <p className="text-sm text-gray-600">Status</p>
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
@@ -1153,6 +1099,7 @@ const Roles = () => {
                       ))}
                     </div>
                   </div>
+                  {errors.permissions && <p className="text-red-500 text-xs mt-1">{errors.permissions[0]}</p>}
                 </div>
               )}
             </div>
@@ -1162,7 +1109,7 @@ const Roles = () => {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-[9999]">
           <div
             className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
               toastType === "success"
@@ -1176,6 +1123,12 @@ const Roles = () => {
               <AlertTriangle className="w-5 h-5" />
             )}
             <span>{toastMessage}</span>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

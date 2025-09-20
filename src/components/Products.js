@@ -32,7 +32,7 @@ const PRODUCT_STATUS = {
 
 const Products = () => {
   // API hooks
-  const { data: productsData, isLoading, isError } = useGetProductsQuery();
+  const { data: productsData, isLoading, isError, refetch } = useGetProductsQuery();
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
@@ -46,7 +46,17 @@ const Products = () => {
   const admins = adminsData?.data || [];
   
   // Filter employees (role_type = 'employee')
-  const employees = admins.filter(admin => admin.roles[0].role_type === 'employee');
+  const employees = admins.filter(admin => admin.role_type === 'employee');
+
+  // Helper function to calculate total quantity sold
+  const getTotalQuantitySold = (product) => {
+    if (!product.orders || !Array.isArray(product.orders)) {
+      return 0;
+    }
+    return product.orders.reduce((total, order) => {
+      return total + (order.pivot?.quantity || 0);
+    }, 0);
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -60,17 +70,32 @@ const Products = () => {
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
-    price: 0,
-    stock: 0,
+    price: '',
+    stock: '',
     status: 'active',
     responsible_employee_id: '',
     category_id: ''
   });
 
+  // Reset form function
+  const resetForm = () => {
+    setNewProduct({
+      name: '',
+      description: '',
+      price: '',
+      stock: '',
+      status: 'active',
+      responsible_employee_id: '',
+      category_id: ''
+    });
+    setErrors({});
+  };
+
   // Toast notification states
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
+  const [errors, setErrors] = useState({});
 
   // Toast notification function
   const showToastNotification = (message, type = "success") => {
@@ -78,6 +103,16 @@ const Products = () => {
     setToastType(type);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Error message handler
+  const getErrorMessage = (error) => {
+    if (error?.data?.errors) {
+      // Handle validation errors - show unified message
+      return 'Zəhmət olmasa bütün xətaları düzəldin!';
+    }
+    
+    return error?.data?.message || 'Xəta baş verdi!';
   };
 
 
@@ -121,7 +156,6 @@ const Products = () => {
 
   const getEmployeeName = (employeeId) => {
     const employee = employees.find(emp => emp.id === employeeId);
-    console.log(employee);
     return employee ? `${employee.first_name} ${employee.last_name}` : 'N/A';
   };
 
@@ -139,32 +173,75 @@ const Products = () => {
   // CRUD Functions
   const handleAddProduct = async () => {
     try {
+      setErrors({});
+      
+      // Basic validation
+      const validationErrors = {};
+      
+      if (!newProduct.name.trim()) {
+        validationErrors.name = ["Məhsul adı tələb olunur"];
+      }
+      if (!newProduct.price || parseFloat(newProduct.price) <= 0) {
+        validationErrors.price = ["Qiymət tələb olunur və 0-dan böyük olmalıdır"];
+      }
+      if (!newProduct.stock || parseInt(newProduct.stock) < 0) {
+        validationErrors.stock = ["Stok miqdarı tələb olunur"];
+      }
+      if (!newProduct.category_id) {
+        validationErrors.category_id = ["Kateqoriya tələb olunur"];
+      }
+      if (!newProduct.responsible_employee_id) {
+        validationErrors.responsible_employee_id = ["Məsul şəxs tələb olunur"];
+      }
+      
+      // If there are validation errors, show them and prevent submission
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        showToastNotification("Zəhmət olmasa bütün xətaları düzəldin!", "error");
+        return;
+      }
+      
       const productData = {
         ...newProduct,
+        price: parseFloat(newProduct.price),
+        stock: parseInt(newProduct.stock),
         description: newProduct.description && newProduct.description.trim() !== "" ? newProduct.description : null,
       };
       await createProduct(productData).unwrap();
       showToastNotification("Məhsul uğurla əlavə edildi!", "success");
       setShowAddModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
       // Reset form
-      setNewProduct({
-        name: '',
-        description: '',
-        price: 0,
-        stock: 0,
-        status: 'active',
-        responsible_employee_id: '',
-        category_id: ''
-      });
+      resetForm();
     } catch (error) {
       console.error("Məhsul əlavə edilərkən xəta:", error);
-      const errorMessage = error?.data?.message || "Məhsul əlavə edilərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
+      
+      if (error.data?.errors) {
+        // Map backend errors to frontend error format
+        const mappedErrors = {};
+        Object.keys(error.data.errors).forEach(field => {
+          if (Array.isArray(error.data.errors[field])) {
+            mappedErrors[field] = error.data.errors[field];
+          } else {
+            mappedErrors[field] = [error.data.errors[field]];
+          }
+        });
+        setErrors(mappedErrors);
+        
+        // Show specific error message
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      } else {
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      }
     }
   };
 
   const handleEditProduct = async () => {
     try {
+      setErrors({});
       // Only send changed fields
       const productData = {};
 
@@ -180,13 +257,15 @@ const Products = () => {
       }
 
       // Check if price has changed
-      if (newProduct.price !== selectedProduct.price) {
-        productData.price = newProduct.price;
+      const newPrice = parseFloat(newProduct.price) || 0;
+      if (newPrice !== selectedProduct.price) {
+        productData.price = newPrice;
       }
 
       // Check if stock has changed
-      if (newProduct.stock !== selectedProduct.stock) {
-        productData.stock = newProduct.stock;
+      const newStock = parseInt(newProduct.stock) || 0;
+      if (newStock !== selectedProduct.stock) {
+        productData.stock = newStock;
       }
 
       // Check if status has changed
@@ -213,10 +292,30 @@ const Products = () => {
       await updateProduct({ id: selectedProduct.id, ...productData }).unwrap();
       showToastNotification("Məhsul uğurla yeniləndi!", "success");
       setShowEditModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
       console.error("Məhsul yenilənərkən xəta:", error);
-      const errorMessage = error?.data?.message || "Məhsul yenilənərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
+      
+      if (error.data?.errors) {
+        // Map backend errors to frontend error format
+        const mappedErrors = {};
+        Object.keys(error.data.errors).forEach(field => {
+          if (Array.isArray(error.data.errors[field])) {
+            mappedErrors[field] = error.data.errors[field];
+          } else {
+            mappedErrors[field] = [error.data.errors[field]];
+          }
+        });
+        setErrors(mappedErrors);
+        
+        // Show specific error message
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      } else {
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      }
     }
   };
 
@@ -225,10 +324,12 @@ const Products = () => {
       await deleteProduct(selectedProduct.id).unwrap();
       showToastNotification("Məhsul uğurla silindi!", "success");
       setShowDeleteModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
-      console.error("Məhsul silinərkən xəta:", error);
-      const errorMessage = error?.data?.message || "Məhsul silinərkən xəta baş verdi!";
+      const errorMessage = getErrorMessage(error);
       showToastNotification(errorMessage, "error");
+      console.error("Məhsul silinərkən xəta:", error);
     }
   };
 
@@ -237,12 +338,13 @@ const Products = () => {
     setNewProduct({
       name: product.name,
       description: product.description || '',
-      price: product.price,
+      price: product.price.toString(),
       status: product.status,
-      stock: product.stock,
+      stock: product.stock.toString(),
       responsible_employee_id: product.responsible_employee_id,
       category_id: product.category_id
     });
+    setErrors({});
     setShowEditModal(true);
   };
 
@@ -305,7 +407,11 @@ const Products = () => {
             <h2 className="text-xl font-semibold text-gray-800">Məhsul Siyahısı</h2>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
               <button 
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetForm();
+                  setErrors({});
+                  setShowAddModal(true);
+                }}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -351,7 +457,7 @@ const Products = () => {
             >
               <option value="all">Bütün Statuslar</option>
               <option value="active">Aktiv</option>
-              <option value="inactive">Qeyri-aktiv</option>
+              <option value="deactive">Qeyri-aktiv</option>
               <option value="passiv">Passiv</option>
             </select>
             
@@ -406,7 +512,7 @@ const Products = () => {
                   
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">{product.orders_count || 0} ədəd satılıb</span>
+                    <span className="text-sm text-gray-600">{getTotalQuantitySold(product)} ədəd satılıb</span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -417,7 +523,7 @@ const Products = () => {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">👤 {getEmployeeName(product.responsible_employee.id)}</span>
+                    <span className="text-sm text-gray-600">👤 {getEmployeeName(product.responsible_employee_id)}</span>
                   </div>
                 </div>
                 
@@ -497,9 +603,12 @@ const Products = () => {
                     type="text"
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Məhsul adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
                 
                 <div>
@@ -507,10 +616,13 @@ const Products = () => {
                   <textarea
                     value={newProduct.description}
                     onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Məhsul haqqında təsvir"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
                 
                 <div>
@@ -518,13 +630,16 @@ const Products = () => {
                   <select
                     value={newProduct.category_id}
                     onChange={(e) => setNewProduct({...newProduct, category_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.category_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Kateqoriya seçin</option>
                     {categories.map(category => (
                       <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
+                  {errors.category_id && <p className="text-red-500 text-xs mt-1">{errors.category_id[0]}</p>}
                 </div>
                 
                 <div>
@@ -532,11 +647,20 @@ const Products = () => {
                   <input
                     type="number"
                     value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow numbers and decimal point for price
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setNewProduct({...newProduct, price: value});
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.price ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="0"
                     min="0"
                   />
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
                 </div>
                 
                 <div>
@@ -544,11 +668,20 @@ const Products = () => {
                   <input
                     type="number"
                     value={newProduct.stock}
-                    onChange={(e) => setNewProduct({...newProduct, stock: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow whole numbers for stock
+                      if (value === '' || /^\d+$/.test(value)) {
+                        setNewProduct({...newProduct, stock: value});
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.stock ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="0"
                     min="0"
                   />
+                  {errors.stock && <p className="text-red-500 text-xs mt-1">{errors.stock[0]}</p>}
                 </div>
                 
                 <div>
@@ -556,12 +689,15 @@ const Products = () => {
                   <select
                     value={newProduct.status}
                     onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
                     <option value="deactive">Qeyri-aktiv</option>
                     <option value="passiv">Passiv</option>
                   </select>
+                  {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status[0]}</p>}
                 </div>
                 
                 <div>
@@ -569,7 +705,9 @@ const Products = () => {
                   <select
                     value={newProduct.responsible_employee_id}
                     onChange={(e) => setNewProduct({...newProduct, responsible_employee_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.responsible_employee_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Əməkdaş seçin</option>
                     {employees.map((employee) => (
@@ -578,6 +716,7 @@ const Products = () => {
                       </option>
                     ))}
                   </select>
+                  {errors.responsible_employee_id && <p className="text-red-500 text-xs mt-1">{errors.responsible_employee_id[0]}</p>}
                 </div>
               </div>
             </div>
@@ -591,8 +730,7 @@ const Products = () => {
               </button>
               <button
                 onClick={handleAddProduct}
-                disabled={!newProduct.name || !newProduct.category_id || !newProduct.responsible_employee_id || isCreating}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {isCreating ? "Əlavə edilir..." : "Əlavə Et"}
               </button>
@@ -623,9 +761,12 @@ const Products = () => {
                     type="text"
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Məhsul adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
                 
                 <div>
@@ -633,10 +774,13 @@ const Products = () => {
                   <textarea
                     value={newProduct.description}
                     onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Məhsul haqqında təsvir"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
                 
                 <div>
@@ -644,13 +788,16 @@ const Products = () => {
                   <select
                     value={newProduct.category_id}
                     onChange={(e) => setNewProduct({...newProduct, category_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.category_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Kateqoriya seçin</option>
                     {categories.map(category => (
                       <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
+                  {errors.category_id && <p className="text-red-500 text-xs mt-1">{errors.category_id[0]}</p>}
                 </div>
                 
                 <div>
@@ -658,11 +805,20 @@ const Products = () => {
                   <input
                     type="number"
                     value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow numbers and decimal point for price
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setNewProduct({...newProduct, price: value});
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.price ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="0"
                     min="0"
                   />
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
                 </div>
                 
                 <div>
@@ -670,11 +826,20 @@ const Products = () => {
                   <input
                     type="number"
                     value={newProduct.stock}
-                    onChange={(e) => setNewProduct({...newProduct, stock: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow whole numbers for stock
+                      if (value === '' || /^\d+$/.test(value)) {
+                        setNewProduct({...newProduct, stock: value});
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.stock ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="0"
                     min="0"
                   />
+                  {errors.stock && <p className="text-red-500 text-xs mt-1">{errors.stock[0]}</p>}
                 </div>
                 
                 <div>
@@ -682,12 +847,15 @@ const Products = () => {
                   <select
                     value={newProduct.status}
                     onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
                     <option value="deactive">Qeyri-aktiv</option>
                     <option value="passiv">Passiv</option>
                   </select>
+                  {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status[0]}</p>}
                 </div>
                 
                 <div>
@@ -695,7 +863,9 @@ const Products = () => {
                   <select
                     value={newProduct.responsible_employee_id}
                     onChange={(e) => setNewProduct({...newProduct, responsible_employee_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.responsible_employee_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Əməkdaş seçin</option>
                     {employees.map((employee) => (
@@ -704,6 +874,7 @@ const Products = () => {
                       </option>
                     ))}
                   </select>
+                  {errors.responsible_employee_id && <p className="text-red-500 text-xs mt-1">{errors.responsible_employee_id[0]}</p>}
                 </div>
               </div>
             </div>
@@ -717,8 +888,7 @@ const Products = () => {
               </button>
               <button
                 onClick={handleEditProduct}
-                disabled={!newProduct.name || !newProduct.category_id || !newProduct.responsible_employee_id || isUpdating}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 {isUpdating ? "Yenilənir..." : "Yenilə"}
               </button>
@@ -836,11 +1006,11 @@ const Products = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-600">Ümumi Satış</p>
-                        <p className="text-lg font-semibold text-gray-800">{selectedProduct.orders_count || 0} ədəd</p>
+                        <p className="text-lg font-semibold text-gray-800">{getTotalQuantitySold(selectedProduct)} ədəd</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Ümumi Gəlir</p>
-                        <p className="text-lg font-semibold text-green-600">₼{((selectedProduct.price || 0) * (selectedProduct.orders_count || 0)).toFixed(2)}</p>
+                        <p className="text-lg font-semibold text-green-600">₼{((selectedProduct.price || 0) * getTotalQuantitySold(selectedProduct)).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
@@ -888,7 +1058,7 @@ const Products = () => {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-[9999]">
           <div
             className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
               toastType === "success"
@@ -902,6 +1072,12 @@ const Products = () => {
               <AlertTriangle className="w-5 h-5" />
             )}
             <span>{toastMessage}</span>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

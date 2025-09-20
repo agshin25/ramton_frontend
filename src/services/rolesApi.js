@@ -9,6 +9,9 @@ export const rolesApi = createApi({
     getRoles: builder.query({
       query: () => "/roles",
       providesTags: ["Roles"],
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
     }),
     createRole: builder.mutation({
       query: (role) => ({

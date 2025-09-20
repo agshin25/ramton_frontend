@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle,
@@ -6,26 +6,24 @@ import {
   Edit,
   Plus,
   Search,
-  Filter,
-  User,
-  MessageSquare,
-  FileText,
   Calendar,
-  Tag,
-  ArrowUpRight,
-  ArrowDownRight,
   X,
   Eye,
   Trash2,
   Send,
   Download,
-  BarChart3,
   Target,
-  Users,
-  Package,
-  Truck,
-  Settings
+  Settings,
+  Filter
 } from 'lucide-react';
+import { 
+  useGetProblemsQuery, 
+  useCreateProblemMutation, 
+  useUpdateProblemMutation, 
+  useDeleteProblemMutation,
+  useGetDepartmentsQuery
+} from '../services/problemsApi';
+import { useGetAdminsQuery } from '../services/adminsApi';
 
 const ProblemTracking = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('all');
@@ -35,80 +33,67 @@ const ProblemTracking = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [problemsPerPage] = useState(8);
 
-  // Sample departments
-  const departments = [
-    { id: 'sales', name: 'Satış Departamenti', icon: Package, color: 'blue' },
-    { id: 'support', name: 'Müştəri Dəstəyi', icon: Users, color: 'green' },
-    { id: 'technical', name: 'Texniki Dəstək', icon: Settings, color: 'purple' },
-    { id: 'logistics', name: 'Logistika', icon: Truck, color: 'orange' },
-    { id: 'admin', name: 'Administrasiya', icon: BarChart3, color: 'red' }
-  ];
+  // Toast notification states
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success");
+  const [errors, setErrors] = useState({});
 
-  // Sample problems data
-  const [problems, setProblems] = useState([
-    {
-      id: 'PRB-001',
-      title: 'Məhsul çatdırılmasında gecikmə',
-      description: 'iPhone 15 Pro sifarişi 3 gün gecikmə ilə çatdırıldı',
-      department: 'logistics',
-      priority: 'high',
-      status: 'in-progress',
-      assignedTo: 'Rəşad Əhmədov',
-      reportedBy: 'Əli Məmmədov',
-      reportedDate: '2024-02-01',
-      deadline: '2024-02-05',
-      category: 'delivery',
-      tags: ['çatdırılma', 'gecikmə', 'müştəri şikayəti'],
-      attachments: ['invoice.pdf', 'tracking.pdf'],
-      comments: [
-        {
-          id: 1,
-          user: 'Rəşad Əhmədov',
-          message: 'Kuryer təyin edildi, sabah çatdırılacaq',
-          time: '2024-02-01 14:30',
-          type: 'update'
-        }
-      ]
-    },
-    {
-      id: 'PRB-002',
-      title: 'Məhsul keyfiyyət problemi',
-      description: 'MacBook Air-də kiçik xarabatlıq aşkar edildi',
-      department: 'technical',
-      priority: 'medium',
-      status: 'open',
-      assignedTo: 'Məhəmməd Əliyev',
-      reportedBy: 'Aysu Hüseynova',
-      reportedDate: '2024-02-02',
-      deadline: '2024-02-08',
-      category: 'quality',
-      tags: ['keyfiyyət', 'xarabatlıq', 'təftiş'],
-      attachments: ['photo1.jpg', 'photo2.jpg'],
-      comments: []
+  // Toast notification function
+  const showToastNotification = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Error message handler
+  const getErrorMessage = (error) => {
+    if (error?.data?.errors) {
+      // Handle validation errors - show unified message
+      return 'Zəhmət olmasa bütün xətaları düzəldin!';
     }
-  ]);
+    
+    return error?.data?.message || 'Xəta baş verdi!';
+  };
 
-  const [newProblem, setNewProblem] = useState({
+  // API hooks
+  const { data: problemsData, isLoading: problemsLoading, error: problemsError, refetch } = useGetProblemsQuery();
+  const { data: departmentsData } = useGetDepartmentsQuery();
+  const { data: adminsData } = useGetAdminsQuery();
+  const [createProblem, { isLoading: createLoading }] = useCreateProblemMutation();
+  const [updateProblem, { isLoading: updateLoading }] = useUpdateProblemMutation();
+  const [deleteProblem, { isLoading: deleteLoading }] = useDeleteProblemMutation();
+
+  // Form state
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
-    department: '',
-    priority: 'medium',
-    category: '',
-    assignedTo: '',
+    priority: 'Orta',
+    status: 'Açıq',
+    category: 'Çatdırılma',
     deadline: '',
-    tags: []
+    responsible_employee_id: '',
+    department_id: ''
   });
+
+  // Enum values
+  const priorityOptions = ['Aşağı', 'Orta', 'Yüksək', 'Təcili'];
+  const statusOptions = ['Açıq', 'Davam edir', 'Araşdırılır', 'Həll edildi', 'Bağlandı', 'Gecikdi'];
+  const categoryOptions = ['Çatdırılma', 'Keyfiyyət'];
 
   // Get priority color
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
+      case 'Yüksək': return 'bg-red-100 text-red-800 border-red-200';
+      case 'Təcili': return 'bg-red-200 text-red-900 border-red-300';
+      case 'Orta': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Aşağı': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -116,11 +101,12 @@ const ProblemTracking = () => {
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'open': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'in-progress': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'investigating': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'resolved': return 'bg-green-100 text-green-800 border-green-200';
-      case 'closed': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Açıq': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Davam edir': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Araşdırılır': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Həll edildi': return 'bg-green-100 text-green-800 border-green-200';
+      case 'Bağlandı': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'Gecikdi': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -128,31 +114,37 @@ const ProblemTracking = () => {
   // Get status icon
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'open': return <AlertTriangle className="w-4 h-4" />;
-      case 'in-progress': return <Clock className="w-4 h-4" />;
-      case 'investigating': return <Search className="w-4 h-4" />;
-      case 'resolved': return <CheckCircle className="w-4 h-4" />;
-      case 'closed': return <CheckCircle className="w-4 h-4" />;
+      case 'Açıq': return <AlertTriangle className="w-4 h-4" />;
+      case 'Davam edir': return <Target className="w-4 h-4" />;
+      case 'Araşdırılır': return <Search className="w-4 h-4" />;
+      case 'Həll edildi': return <CheckCircle className="w-4 h-4" />;
+      case 'Bağlandı': return <CheckCircle className="w-4 h-4" />;
+      case 'Gecikdi': return <AlertTriangle className="w-4 h-4" />;
       default: return <AlertTriangle className="w-4 h-4" />;
     }
   };
 
   // Get department icon
   const getDepartmentIcon = (departmentId) => {
-    const dept = departments.find(d => d.id === departmentId);
+    const dept = departmentsData?.data?.find(d => d.id === departmentId);
     if (dept) {
-      const Icon = dept.icon;
-      return <Icon className="w-4 h-4" />;
+      return <Settings className="w-4 h-4" />;
     }
     return <Settings className="w-4 h-4" />;
   };
+
+  // Get problems from API data
+  const problems = problemsData?.data || [];
+  
+  // Filter employees from admins data (role_type === "employee")
+  const employees = adminsData?.data?.filter(admin => admin.role_type === "employee") || [];
 
   // Filter problems
   const filteredProblems = problems.filter(problem => {
     const matchesSearch = problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          problem.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         problem.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment = selectedDepartment === 'all' || problem.department === selectedDepartment;
+                         problem.id.toString().includes(searchTerm);
+    const matchesDepartment = selectedDepartment === 'all' || problem.department_id.toString() === selectedDepartment;
     const matchesStatus = selectedStatus === 'all' || problem.status === selectedStatus;
     const matchesPriority = selectedPriority === 'all' || problem.priority === selectedPriority;
     
@@ -166,63 +158,133 @@ const ProblemTracking = () => {
   const totalPages = Math.ceil(filteredProblems.length / problemsPerPage);
 
   // Handle add problem
-  const handleAddProblem = () => {
-    if (newProblem.title && newProblem.description && newProblem.department) {
-      const problemToAdd = {
-        id: `PRB-${String(problems.length + 1).padStart(3, '0')}`,
-        ...newProblem,
-        status: 'open',
-        reportedBy: 'Cari İstifadəçi',
-        reportedDate: new Date().toISOString().split('T')[0],
-        attachments: [],
-        comments: [],
-        tags: newProblem.tags
+  const handleAddProblem = async () => {
+    try {
+      setErrors({});
+      const problemData = {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        status: formData.status,
+        category: formData.category,
+        deadline: formData.deadline,
+        responsible_employee_id: parseInt(formData.responsible_employee_id),
+        department_id: parseInt(formData.department_id)
       };
-      
-      setProblems([...problems, problemToAdd]);
-      
-      setNewProblem({
-        title: '',
-        description: '',
-        department: '',
-        priority: 'medium',
-        category: '',
-        assignedTo: '',
-        deadline: '',
-        tags: []
-      });
+
+      await createProblem(problemData).unwrap();
+      showToastNotification('Problem uğurla əlavə edildi!', 'success');
       setShowAddModal(false);
-    }
+      resetForm();
+      // Manually refetch to ensure UI updates
+      refetch();
+      } catch (error) {
+        if (error.data?.errors) {
+          setErrors(error.data.errors);
+          // Show toaster notification for validation errors
+          const errorMessage = getErrorMessage(error);
+          showToastNotification(errorMessage, 'error');
+        } else {
+          const errorMessage = getErrorMessage(error);
+          showToastNotification(errorMessage, 'error');
+        }
+        console.error('Error creating problem:', error);
+      }
   };
 
   // Handle edit problem
-  const handleEditProblem = () => {
-    if (selectedProblem && newProblem.title && newProblem.description && newProblem.department) {
-      const updatedProblems = problems.map(problem => 
-        problem.id === selectedProblem.id 
-          ? { ...problem, ...newProblem }
-          : problem
-      );
-      
-      setProblems(updatedProblems);
-      setShowEditModal(false);
-      setSelectedProblem(null);
+  const handleEditProblem = async () => {
+    try {
+      if (!selectedProblem) return;
+      setErrors({});
+
+      // Only send changed fields for update
+      const updateData = {};
+      if (formData.title !== selectedProblem.title) updateData.title = formData.title;
+      if (formData.description !== selectedProblem.description) updateData.description = formData.description;
+      if (formData.priority !== selectedProblem.priority) updateData.priority = formData.priority;
+      if (formData.status !== selectedProblem.status) updateData.status = formData.status;
+      if (formData.category !== selectedProblem.category) updateData.category = formData.category;
+      if (formData.deadline !== selectedProblem.deadline) updateData.deadline = formData.deadline;
+      if (formData.responsible_employee_id !== selectedProblem.responsible_employee_id.toString()) {
+        updateData.responsible_employee_id = parseInt(formData.responsible_employee_id);
+      }
+      if (formData.department_id !== selectedProblem.department_id.toString()) {
+        updateData.department_id = parseInt(formData.department_id);
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await updateProblem({ id: selectedProblem.id, ...updateData }).unwrap();
+        showToastNotification('Problem uğurla yeniləndi!', 'success');
+        setShowEditModal(false);
+        setSelectedProblem(null);
+        // Manually refetch to ensure UI updates
+        refetch();
+        resetForm();
+      } else {
+        showToastNotification('Heç bir dəyişiklik edilməyib!', 'error');
+      }
+    } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        // Show toaster notification for validation errors
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      } else {
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      }
+      console.error('Error updating problem:', error);
     }
+  };
+
+  // Handle delete problem
+  const handleDeleteProblem = async () => {
+    if (selectedProblem) {
+      try {
+        await deleteProblem(selectedProblem.id).unwrap();
+        showToastNotification('Problem uğurla silindi!', 'success');
+        setShowDeleteModal(false);
+        setSelectedProblem(null);
+        // Manually refetch to ensure UI updates
+        refetch();
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      showToastNotification(errorMessage, 'error');
+      console.error('Error deleting problem:', error);
+    }
+    }
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      priority: 'Orta',
+      status: 'Açıq',
+      category: 'Çatdırılma',
+      deadline: '',
+      responsible_employee_id: '',
+      department_id: ''
+    });
+    setErrors({});
   };
 
   // Open edit modal
   const openEditModal = (problem) => {
     setSelectedProblem(problem);
-    setNewProblem({
+    setFormData({
       title: problem.title,
       description: problem.description,
-      department: problem.department,
       priority: problem.priority,
+      status: problem.status,
       category: problem.category,
-      assignedTo: problem.assignedTo,
       deadline: problem.deadline,
-      tags: problem.tags
+      responsible_employee_id: problem.responsible_employee_id.toString(),
+      department_id: problem.department_id.toString()
     });
+    setErrors({});
     setShowEditModal(true);
   };
 
@@ -231,6 +293,40 @@ const ProblemTracking = () => {
     setSelectedProblem(problem);
     setShowViewModal(true);
   };
+
+  // Open delete modal
+  const openDeleteModal = (problem) => {
+    setSelectedProblem(problem);
+    setShowDeleteModal(true);
+  };
+
+  // Open add modal
+  const openAddModal = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+
+  if (problemsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Problemlər yüklənir...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (problemsError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600">Problemlər yüklənərkən xəta baş verdi!</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
@@ -259,7 +355,7 @@ const ProblemTracking = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Açıq Problemlər</p>
-              <p className="text-3xl font-bold text-blue-600">{problems.filter(p => p.status === 'open').length}</p>
+              <p className="text-3xl font-bold text-blue-600">{problems.filter(p => p.status === 'Açıq').length}</p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center">
               <Clock className="w-8 h-8 text-white" />
@@ -271,7 +367,7 @@ const ProblemTracking = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Həll Edilmiş</p>
-              <p className="text-3xl font-bold text-green-600">{problems.filter(p => p.status === 'resolved').length}</p>
+              <p className="text-3xl font-bold text-green-600">{problems.filter(p => p.status === 'Həll edildi').length}</p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center">
               <CheckCircle className="w-8 h-8 text-white" />
@@ -283,7 +379,7 @@ const ProblemTracking = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Davam Edir</p>
-              <p className="text-3xl font-bold text-purple-600">{problems.filter(p => p.status === 'in-progress').length}</p>
+              <p className="text-3xl font-bold text-purple-600">{problems.filter(p => p.status === 'Davam edir').length}</p>
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
               <Target className="w-8 h-8 text-white" />
@@ -298,7 +394,7 @@ const ProblemTracking = () => {
           <h2 className="text-xl font-semibold text-gray-800">Filtrlər və İdarəetmə</h2>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             <button 
-              onClick={() => setShowAddModal(true)}
+              onClick={openAddModal}
               className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -330,7 +426,7 @@ const ProblemTracking = () => {
             className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
           >
             <option value="all">Bütün Department-lər</option>
-            {departments.map((dept) => (
+            {departmentsData?.data?.map((dept) => (
               <option key={dept.id} value={dept.id}>
                 {dept.name}
               </option>
@@ -343,11 +439,11 @@ const ProblemTracking = () => {
             className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
           >
             <option value="all">Bütün Statuslar</option>
-            <option value="open">Açıq</option>
-            <option value="in-progress">Davam edir</option>
-            <option value="investigating">Araşdırılır</option>
-            <option value="resolved">Həll edildi</option>
-            <option value="closed">Bağlandı</option>
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
           </select>
           
           <select
@@ -356,9 +452,11 @@ const ProblemTracking = () => {
             className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
           >
             <option value="all">Bütün Prioritetlər</option>
-            <option value="high">Yüksək</option>
-            <option value="medium">Orta</option>
-            <option value="low">Aşağı</option>
+            {priorityOptions.map((priority) => (
+              <option key={priority} value={priority}>
+                {priority}
+              </option>
+            ))}
           </select>
           
           <button className="px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center">
@@ -375,14 +473,14 @@ const ProblemTracking = () => {
             {/* Header */}
             <div className="p-6 border-b border-gray-100">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">{problem.id}</h3>
+                <h3 className="text-lg font-semibold text-gray-800">#{problem.id}</h3>
                 <div className="flex items-center space-x-2">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getPriorityColor(problem.priority)}`}>
-                    {problem.priority === 'high' ? 'Yüksək' : problem.priority === 'medium' ? 'Orta' : 'Aşağı'}
+                    {problem.priority}
                   </span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(problem.status)} flex items-center space-x-1`}>
                     {getStatusIcon(problem.status)}
-                    <span>{problem.status === 'open' ? 'Açıq' : problem.status === 'in-progress' ? 'Davam edir' : problem.status === 'investigating' ? 'Araşdırılır' : problem.status === 'resolved' ? 'Həll edildi' : 'Bağlandı'}</span>
+                    <span>{problem.status}</span>
                   </span>
                 </div>
               </div>
@@ -392,12 +490,12 @@ const ProblemTracking = () => {
               
               <div className="flex items-center space-x-4 text-sm text-gray-500">
                 <div className="flex items-center space-x-1">
-                  {getDepartmentIcon(problem.department)}
-                  <span>{departments.find(d => d.id === problem.department)?.name}</span>
+                  {getDepartmentIcon(problem.department_id)}
+                  <span>{departmentsData?.data?.find(d => d.id === problem.department_id)?.name || 'Naməlum Department'}</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Calendar className="w-4 h-4" />
-                  <span>{problem.reportedDate}</span>
+                  <span>{new Date(problem.created_at).toLocaleDateString('az-AZ')}</span>
                 </div>
               </div>
             </div>
@@ -407,7 +505,9 @@ const ProblemTracking = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Təyin edilib:</span>
-                  <span className="font-medium text-gray-800">{problem.assignedTo}</span>
+                  <span className="font-medium text-gray-800">
+                    {problem.responsible_employee?.first_name} {problem.responsible_employee?.last_name}
+                  </span>
                 </div>
                 
                 <div className="flex items-center justify-between">
@@ -419,16 +519,6 @@ const ProblemTracking = () => {
                   <span className="text-gray-600">Kateqoriya:</span>
                   <span className="font-medium text-gray-800">{problem.category}</span>
                 </div>
-                
-                {problem.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {problem.tags.map((tag, index) => (
-                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-lg">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Actions */}
@@ -446,6 +536,13 @@ const ProblemTracking = () => {
                 >
                   <Edit className="w-4 h-4" />
                   <span className="text-sm">Redaktə</span>
+                </button>
+                <button 
+                  onClick={() => openDeleteModal(problem)}
+                  className="flex-1 bg-red-50 text-red-600 py-2 px-3 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center space-x-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="text-sm">Sil</span>
                 </button>
               </div>
             </div>
@@ -491,86 +588,119 @@ const ProblemTracking = () => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Başlıq</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Başlıq *</label>
                   <input
                     type="text"
-                    value={newProblem.title}
-                    onChange={(e) => setNewProblem({...newProblem, title: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.title ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Problem başlığı"
+                    required
                   />
+                  {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title[0]}</p>}
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir *</label>
                   <textarea
-                    value={newProblem.description}
-                    onChange={(e) => setNewProblem({...newProblem, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Problem təsviri"
+                    required
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Department *</label>
                   <select
-                    value={newProblem.department}
-                    onChange={(e) => setNewProblem({...newProblem, department: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.department_id}
+                    onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.department_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
                   >
                     <option value="">Department seçin</option>
-                    {departments.map((dept) => (
+                    {departmentsData?.data?.map((dept) => (
                       <option key={dept.id} value={dept.id}>
                         {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.department_id && <p className="text-red-500 text-xs mt-1">{errors.department_id[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioritet *</label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    {priorityOptions.map((priority) => (
+                      <option key={priority} value={priority}>
+                        {priority}
                       </option>
                     ))}
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioritet</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya *</label>
                   <select
-                    value={newProblem.priority}
-                    onChange={(e) => setNewProblem({...newProblem, priority: e.target.value})}
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
                   >
-                    <option value="low">Aşağı</option>
-                    <option value="medium">Orta</option>
-                    <option value="high">Yüksək</option>
+                    {categoryOptions.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya</label>
-                  <input
-                    type="text"
-                    value={newProblem.category}
-                    onChange={(e) => setNewProblem({...newProblem, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Məsələn: çatdırılma"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Təyin edilib *</label>
+                  <select
+                    value={formData.responsible_employee_id}
+                    onChange={(e) => setFormData({...formData, responsible_employee_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.responsible_employee_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
+                  >
+                    <option value="">Əməkdaş seçin</option>
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.first_name} {employee.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.responsible_employee_id && <p className="text-red-500 text-xs mt-1">{errors.responsible_employee_id[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Təyin edilib</label>
-                  <input
-                    type="text"
-                    value={newProblem.assignedTo}
-                    onChange={(e) => setNewProblem({...newProblem, assignedTo: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Əməkdaş adı"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bitmə tarixi</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Bitmə tarixi *</label>
                   <input
                     type="date"
-                    value={newProblem.deadline}
-                    onChange={(e) => setNewProblem({...newProblem, deadline: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.deadline}
+                    onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.deadline ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
                   />
+                  {errors.deadline && <p className="text-red-500 text-xs mt-1">{errors.deadline[0]}</p>}
                 </div>
               </div>
             </div>
@@ -584,8 +714,12 @@ const ProblemTracking = () => {
               </button>
               <button
                 onClick={handleAddProblem}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={createLoading}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
+                {createLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : null}
                 Əlavə Et
               </button>
             </div>
@@ -598,7 +732,7 @@ const ProblemTracking = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Problem Redaktə Et - {selectedProblem.id}</h3>
+              <h3 className="text-xl font-semibold text-gray-800">Problem Redaktə Et - #{selectedProblem.id}</h3>
               <button 
                 onClick={() => setShowEditModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -613,101 +747,124 @@ const ProblemTracking = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Başlıq</label>
                   <input
                     type="text"
-                    value={newProblem.title}
-                    onChange={(e) => setNewProblem({...newProblem, title: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.title ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Problem başlığı"
                   />
+                  {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title[0]}</p>}
                 </div>
                 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Təsvir</label>
                   <textarea
-                    value={newProblem.description}
-                    onChange={(e) => setNewProblem({...newProblem, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Problem təsviri"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
                   <select
-                    value={newProblem.department}
-                    onChange={(e) => setNewProblem({...newProblem, department: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.department_id}
+                    onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.department_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Department seçin</option>
-                    {departments.map((dept) => (
+                    {departmentsData?.data?.map((dept) => (
                       <option key={dept.id} value={dept.id}>
                         {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.department_id && <p className="text-red-500 text-xs mt-1">{errors.department_id[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioritet</label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {priorityOptions.map((priority) => (
+                      <option key={priority} value={priority}>
+                        {priority}
                       </option>
                     ))}
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioritet</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                   <select
-                    value={newProblem.priority}
-                    onChange={(e) => setNewProblem({...newProblem, priority: e.target.value})}
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="low">Aşağı</option>
-                    <option value="medium">Orta</option>
-                    <option value="high">Yüksək</option>
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Kateqoriya</label>
-                  <input
-                    type="text"
-                    value={newProblem.category}
-                    onChange={(e) => setNewProblem({...newProblem, category: e.target.value})}
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Məsələn: çatdırılma"
-                  />
+                  >
+                    {categoryOptions.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Təyin edilib</label>
-                  <input
-                    type="text"
-                    value={newProblem.assignedTo}
-                    onChange={(e) => setNewProblem({...newProblem, assignedTo: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Əməkdaş adı"
-                  />
+                  <select
+                    value={formData.responsible_employee_id}
+                    onChange={(e) => setFormData({...formData, responsible_employee_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.responsible_employee_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Əməkdaş seçin</option>
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.first_name} {employee.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.responsible_employee_id && <p className="text-red-500 text-xs mt-1">{errors.responsible_employee_id[0]}</p>}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Bitmə tarixi</label>
                   <input
                     type="date"
-                    value={newProblem.deadline}
-                    onChange={(e) => setNewProblem({...newProblem, deadline: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.deadline}
+                    onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.deadline ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={selectedProblem.status}
-                    onChange={(e) => {
-                      const updatedProblem = {...selectedProblem, status: e.target.value};
-                      setSelectedProblem(updatedProblem);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="open">Açıq</option>
-                    <option value="in-progress">Davam edir</option>
-                    <option value="investigating">Araşdırılır</option>
-                    <option value="resolved">Həll edildi</option>
-                    <option value="closed">Bağlandı</option>
-                  </select>
+                  {errors.deadline && <p className="text-red-500 text-xs mt-1">{errors.deadline[0]}</p>}
                 </div>
               </div>
             </div>
@@ -721,8 +878,12 @@ const ProblemTracking = () => {
               </button>
               <button
                 onClick={handleEditProblem}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={updateLoading}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
+                {updateLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : null}
                 Yenilə
               </button>
             </div>
@@ -735,7 +896,7 @@ const ProblemTracking = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-800">Problem Detalları - {selectedProblem.id}</h3>
+              <h3 className="text-xl font-semibold text-gray-800">Problem Detalları - #{selectedProblem.id}</h3>
               <button 
                 onClick={() => setShowViewModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -758,18 +919,34 @@ const ProblemTracking = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Status:</span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedProblem.status)}`}>
-                          {selectedProblem.status === 'open' ? 'Açıq' : selectedProblem.status === 'in-progress' ? 'Davam edir' : selectedProblem.status === 'investigating' ? 'Araşdırılır' : selectedProblem.status === 'resolved' ? 'Həll edildi' : 'Bağlandı'}
+                          {selectedProblem.status}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Prioritet:</span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(selectedProblem.priority)}`}>
-                          {selectedProblem.priority === 'high' ? 'Yüksək' : selectedProblem.priority === 'medium' ? 'Orta' : 'Aşağı'}
+                          {selectedProblem.priority}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Department:</span>
-                        <span className="font-medium text-gray-800">{departments.find(d => d.id === selectedProblem.department)?.name}</span>
+                        <span className="font-medium text-gray-800">
+                          {departmentsData?.data?.find(d => d.id === selectedProblem.department_id)?.name || 'Naməlum Department'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Təyin edilib:</span>
+                        <span className="font-medium text-gray-800">
+                          {selectedProblem.responsible_employee?.first_name} {selectedProblem.responsible_employee?.last_name}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Kateqoriya:</span>
+                        <span className="font-medium text-gray-800">{selectedProblem.category}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Bitmə tarixi:</span>
+                        <span className="font-medium text-gray-800">{selectedProblem.deadline}</span>
                       </div>
                     </div>
                   </div>
@@ -778,42 +955,25 @@ const ProblemTracking = () => {
                     <h4 className="font-semibold text-gray-800 mb-3">Təsvir</h4>
                     <p className="text-gray-700">{selectedProblem.description}</p>
                   </div>
-                  
-                  {selectedProblem.tags.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <h4 className="font-semibold text-gray-800 mb-3">Teqlər</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProblem.tags.map((tag, index) => (
-                          <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-lg">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 
-                {/* Comments */}
+                {/* Additional Info */}
                 <div className="space-y-4">
                   <div className="bg-gray-50 p-4 rounded-xl">
-                    <h4 className="font-semibold text-gray-800 mb-3">Şərhlər</h4>
-                    <div className="space-y-3">
-                      {selectedProblem.comments.map((comment) => (
-                        <div key={comment.id} className="bg-white p-3 rounded-lg border border-gray-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-gray-800">{comment.user}</span>
-                            <span className="text-xs text-gray-500">{comment.time}</span>
-                          </div>
-                          <p className="text-sm text-gray-700">{comment.message}</p>
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-2 ${
-                            comment.type === 'update' ? 'bg-blue-100 text-blue-800' :
-                            comment.type === 'resolution' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {comment.type === 'update' ? 'Yeniləmə' : comment.type === 'resolution' ? 'Həll' : 'Şərx'}
-                          </span>
-                        </div>
-                      ))}
+                    <h4 className="font-semibold text-gray-800 mb-3">Əlavə Məlumatlar</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Yaradılma tarixi:</span>
+                        <span className="font-medium text-gray-800">
+                          {new Date(selectedProblem.created_at).toLocaleDateString('az-AZ')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Son yenilənmə:</span>
+                        <span className="font-medium text-gray-800">
+                          {new Date(selectedProblem.updated_at).toLocaleDateString('az-AZ')}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -837,6 +997,84 @@ const ProblemTracking = () => {
                 Redaktə Et
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Problem Modal */}
+      {showDeleteModal && selectedProblem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-800">Problemi Sil</h3>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-medium text-gray-800">Bu problemi silmək istədiyinizə əminsiniz?</h4>
+                  <p className="text-sm text-gray-600 mt-1">
+                    "{selectedProblem.title}" problemi silinəcək və bu əməliyyat geri alına bilməz.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Ləğv Et
+              </button>
+              <button
+                onClick={handleDeleteProblem}
+                disabled={deleteLoading}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {deleteLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-2" />
+                )}
+                Sil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-[9999]">
+          <div
+            className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
+              toastType === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            {toastType === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span>{toastMessage}</span>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

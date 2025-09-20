@@ -16,6 +16,7 @@ import {
   ChevronsRight,
   CheckCircle,
   AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import {
   useGetCategoriesQuery,
@@ -26,7 +27,7 @@ import {
 
 const Categories = () => {
   // API hooks
-  const { data: categoriesData, isLoading, isError } = useGetCategoriesQuery();
+  const { data: categoriesData, isLoading, isError, refetch } = useGetCategoriesQuery();
   const [createCategory, { isLoading: isCreating }] =
     useCreateCategoryMutation();
   const [updateCategory, { isLoading: isUpdating }] =
@@ -51,10 +52,21 @@ const Categories = () => {
     status: "active",
   });
 
+  // Reset form function
+  const resetForm = () => {
+    setNewCategory({
+      name: "",
+      description: "",
+      status: "active",
+    });
+    setErrors({});
+  };
+
   // Toast notification states
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
+  const [errors, setErrors] = useState({});
 
   // Toast notification function
   const showToastNotification = (message, type = "success") => {
@@ -62,6 +74,16 @@ const Categories = () => {
     setToastType(type);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Error message handler
+  const getErrorMessage = (error) => {
+    if (error?.data?.errors) {
+      // Handle validation errors - show unified message
+      return 'Zəhmət olmasa bütün xətaları düzəldin!';
+    }
+    
+    return error?.data?.message || 'Xəta baş verdi!';
   };
 
   // Filter categories
@@ -132,6 +154,7 @@ const Categories = () => {
   // CRUD Functions
   const handleAddCategory = async () => {
     try {
+      setErrors({});
       const categoryData = {
         ...newCategory,
         description:
@@ -142,22 +165,27 @@ const Categories = () => {
       await createCategory(categoryData).unwrap();
       showToastNotification("Kateqoriya uğurla əlavə edildi!", "success");
       setShowAddModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
       // Reset form
-      setNewCategory({
-        name: "",
-        description: "",
-        status: "active",
-      });
+      resetForm();
     } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        // Show toaster notification for validation errors
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      } else {
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      }
       console.error("Kateqoriya əlavə edilərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Kateqoriya əlavə edilərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
     }
   };
 
   const handleEditCategory = async () => {
     try {
+      setErrors({});
       // Only send changed fields
       const categoryData = {};
 
@@ -192,11 +220,19 @@ const Categories = () => {
       }).unwrap();
       showToastNotification("Kateqoriya uğurla yeniləndi!", "success");
       setShowEditModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        // Show toaster notification for validation errors
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      } else {
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      }
       console.error("Kateqoriya yenilənərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Kateqoriya yenilənərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
     }
   };
 
@@ -205,11 +241,12 @@ const Categories = () => {
       await deleteCategory(selectedCategory.id).unwrap();
       showToastNotification("Kateqoriya uğurla silindi!", "success");
       setShowDeleteModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
-      console.error("Kateqoriya silinərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Kateqoriya silinərkən xəta baş verdi!";
+      const errorMessage = getErrorMessage(error);
       showToastNotification(errorMessage, "error");
+      console.error("Kateqoriya silinərkən xəta:", error);
     }
   };
 
@@ -220,6 +257,7 @@ const Categories = () => {
       description: category.description || "",
       status: category.status,
     });
+    setErrors({});
     setShowEditModal(true);
   };
 
@@ -396,7 +434,10 @@ const Categories = () => {
             </h2>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -654,9 +695,12 @@ const Categories = () => {
                     onChange={(e) =>
                       setNewCategory({ ...newCategory, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Kateqoriya adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
 
                 <div>
@@ -671,10 +715,13 @@ const Categories = () => {
                         description: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Kateqoriya təsvirini daxil edin"
                     rows="3"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
 
                 <div>
@@ -686,12 +733,15 @@ const Categories = () => {
                     onChange={(e) =>
                       setNewCategory({ ...newCategory, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
                     <option value="passiv">Passiv</option>
                     <option value="deactive">Qeyri-aktiv</option>
                   </select>
+                  {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status[0]}</p>}
                 </div>
               </div>
             </div>
@@ -705,8 +755,7 @@ const Categories = () => {
               </button>
               <button
                 onClick={handleAddCategory}
-                disabled={!newCategory.name}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Əlavə Et
               </button>
@@ -743,9 +792,12 @@ const Categories = () => {
                     onChange={(e) =>
                       setNewCategory({ ...newCategory, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Kateqoriya adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
 
                 <div>
@@ -760,10 +812,13 @@ const Categories = () => {
                         description: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Kateqoriya təsvirini daxil edin"
                     rows="3"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
 
                 <div>
@@ -775,12 +830,15 @@ const Categories = () => {
                     onChange={(e) =>
                       setNewCategory({ ...newCategory, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
                     <option value="passiv">Passiv</option>
                     <option value="deactive">Qeyri-aktiv</option>
                   </select>
+                  {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status[0]}</p>}
                 </div>
               </div>
             </div>
@@ -794,8 +852,7 @@ const Categories = () => {
               </button>
               <button
                 onClick={handleEditCategory}
-                disabled={!newCategory.name}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 Yenilə
               </button>
@@ -856,7 +913,7 @@ const Categories = () => {
       {/* View Category Modal */}
       {showViewModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-800">
                 Kateqoriya Detalları
@@ -869,71 +926,94 @@ const Categories = () => {
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="flex-1 overflow-y-auto p-6">
               {selectedCategory && (
                 <div className="space-y-6">
                   {/* Category Header */}
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-100 p-4 rounded-xl">
-                    <div>
-                      <h4 className="text-xl font-semibold text-gray-800">
-                        {selectedCategory.name}
-                      </h4>
-                      <p className="text-gray-600">
-                        ID: #{selectedCategory.id}
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-100 p-6 rounded-2xl">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl">
+                        <Tag className="w-8 h-8" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-2xl font-bold text-gray-800 mb-2">
+                          {selectedCategory.name}
+                        </h4>
+                        <p className="text-gray-600 mb-2">
+                          ID: #{selectedCategory.id}
+                        </p>
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                            selectedCategory.status
+                          )}`}
+                        >
+                          {getStatusText(selectedCategory.status)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main Content Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Description */}
+                    <div className="bg-gray-50 p-6 rounded-2xl">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Package className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <h5 className="text-lg font-semibold text-gray-800">Təsvir</h5>
+                      </div>
+                      <p className="text-gray-700 leading-relaxed">
+                        {selectedCategory.description || "Təsvir yoxdur"}
                       </p>
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                          selectedCategory.status
-                        )}`}
-                      >
-                        {getStatusText(selectedCategory.status)}
-                      </span>
                     </div>
-                  </div>
 
-                  {/* Description */}
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <h5 className="font-medium text-gray-800 mb-2">Təsvir</h5>
-                    <p className="text-gray-700">
-                      {selectedCategory.description}
-                    </p>
-                  </div>
-
-                  {/* Statistics */}
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Package className="w-5 h-5 text-blue-600" />
-                      <h5 className="font-medium text-gray-800">Məhsul Sayı</h5>
+                    {/* Statistics */}
+                    <div className="bg-gray-50 p-6 rounded-2xl">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                        </div>
+                        <h5 className="text-lg font-semibold text-gray-800">Məhsul Sayı</h5>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-4xl font-bold text-green-600 mb-2">
+                          {selectedCategory.products_count || 0}
+                        </p>
+                        <p className="text-sm text-gray-600">məhsul bu kateqoriyada</p>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {selectedCategory.products_count || 0}
-                    </p>
                   </div>
 
                   {/* Dates */}
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <h5 className="font-medium text-gray-800 mb-3">
-                      Tarix Məlumatları
-                    </h5>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">Yaradılma Tarixi</p>
-                        <p className="font-medium text-gray-800">
+                  <div className="bg-gray-50 p-6 rounded-2xl">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Calendar className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <h5 className="text-lg font-semibold text-gray-800">
+                        Tarix Məlumatları
+                      </h5>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white p-4 rounded-xl">
+                        <p className="text-sm text-gray-600 mb-2">Yaradılma Tarixi</p>
+                        <p className="text-lg font-semibold text-gray-800">
                           {selectedCategory.created_at
                             ? new Date(
                                 selectedCategory.created_at
                               ).toLocaleDateString("az-AZ")
-                            : ""}
+                            : "Məlumat yoxdur"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-gray-600">Son Yenilənmə</p>
-                        <p className="font-medium text-gray-800">
+                      <div className="bg-white p-4 rounded-xl">
+                        <p className="text-sm text-gray-600 mb-2">Son Yenilənmə</p>
+                        <p className="text-lg font-semibold text-gray-800">
                           {selectedCategory.updated_at
                             ? new Date(
                                 selectedCategory.updated_at
                               ).toLocaleDateString("az-AZ")
-                            : ""}
+                            : "Məlumat yoxdur"}
                         </p>
                       </div>
                     </div>
@@ -965,7 +1045,7 @@ const Categories = () => {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-[9999]">
           <div
             className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
               toastType === "success"
@@ -979,6 +1059,12 @@ const Categories = () => {
               <AlertTriangle className="w-5 h-5" />
             )}
             <span>{toastMessage}</span>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

@@ -123,9 +123,17 @@ const Settings = () => {
 
         {/* Save Notification */}
         {showSaveNotification && (
-          <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 z-50">
-            <CheckCircle className="w-5 h-5" />
-            <span>Tənzimləmələr uğurla yadda saxlanıldı!</span>
+          <div className="fixed top-4 right-4 z-[9999]">
+            <div className="flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg bg-green-500 text-white">
+              <CheckCircle className="w-5 h-5" />
+              <span>Tənzimləmələr uğurla yadda saxlanıldı!</span>
+              <button
+                onClick={() => setShowSaveNotification(false)}
+                className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 

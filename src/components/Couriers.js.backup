@@ -53,7 +53,6 @@ const Couriers = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
-  const [errors, setErrors] = useState({});
 
   // Toast notification function
   const showToastNotification = (message, type = "success") => {
@@ -66,8 +65,19 @@ const Couriers = () => {
   // Error message handler
   const getErrorMessage = (error) => {
     if (error?.data?.errors) {
-      // Handle validation errors - show unified message
-      return 'Zəhmət olmasa bütün xətaları düzəldin!';
+      // Handle validation errors
+      const errors = error.data.errors;
+      const errorMessages = [];
+      
+      Object.keys(errors).forEach(key => {
+        if (Array.isArray(errors[key])) {
+          errorMessages.push(...errors[key]);
+        } else {
+          errorMessages.push(errors[key]);
+        }
+      });
+      
+      return errorMessages.join(', ');
     }
     
     return error?.data?.message || 'Xəta baş verdi!';
@@ -75,7 +85,7 @@ const Couriers = () => {
 
   // API hooks
   const { data: adminsData, isLoading: adminsLoading, error: adminsError } = useGetAdminsQuery();
-  const { data: zonesData, refetch: refetchZones } = useGetZonesQuery();
+  const { data: zonesData } = useGetZonesQuery();
   const { data: citiesData } = useGetCitiesQuery();
   const { data: countriesData } = useGetCountriesQuery();
   const { data: rolesData } = useGetRolesQuery();
@@ -103,7 +113,6 @@ const Couriers = () => {
     password: '',
     status: 'active',
     profile_type: 'courier',
-    role_type: 'courier',
     country_id: '',
     city_id: '',
     zone_ids: [],
@@ -114,14 +123,9 @@ const Couriers = () => {
       vehicle_type: 'car',
       plate_number: '',
       experience: 1,
-      avg_delivery_time: 2.5,
+      avg_delivery_time: 0,
       delays: 0,
-      rating: 5,
-      price_per_delivery: '',
-      balance: '',
-      cash_balance_for_orders: '',
-      currency: 'AZN',
-      monthly_salary: ''
+      rating: 5
     }
   });
 
@@ -135,7 +139,6 @@ const Couriers = () => {
     password: '',
     status: 'active',
     profile_type: 'courier',
-    role_type: 'courier',
     country_id: '',
     city_id: '',
     zone_ids: [],
@@ -146,17 +149,11 @@ const Couriers = () => {
       vehicle_type: 'car',
       plate_number: '',
       experience: 1,
-      avg_delivery_time: 2.5,
+      avg_delivery_time: 0,
       delays: 0,
-      rating: 5,
-      price_per_delivery: '',
-      balance: '',
-      cash_balance_for_orders: '',
-      currency: 'AZN',
-      monthly_salary: ''
+      rating: 5
     }
   });
-  setErrors({});
   };
 
   // Set default country if only one exists
@@ -177,7 +174,6 @@ const Couriers = () => {
   // Handle add courier
   const handleAddCourier = async () => {
     try {
-      setErrors({});
       const courierData = {
         first_name: newCourier.first_name,
         last_name: newCourier.last_name,
@@ -186,7 +182,6 @@ const Couriers = () => {
         password: newCourier.password,
         status: newCourier.status,
         profile_type: newCourier.profile_type,
-        role_type: newCourier.role_type,
         country_id: parseInt(newCourier.country_id),
         city_id: parseInt(newCourier.city_id),
         zone_ids: newCourier.zone_ids,
@@ -199,12 +194,7 @@ const Couriers = () => {
           experience: newCourier.profile.experience,
           avg_delivery_time: newCourier.profile.avg_delivery_time,
           delays: newCourier.profile.delays,
-          rating: newCourier.profile.rating,
-          price_per_delivery: newCourier.profile.price_per_delivery === '' ? 0 : newCourier.profile.price_per_delivery,
-          balance: newCourier.profile.balance === '' ? 0 : newCourier.profile.balance,
-          cash_balance_for_orders: newCourier.profile.cash_balance_for_orders === '' ? 0 : newCourier.profile.cash_balance_for_orders,
-          currency: newCourier.profile.currency,
-          monthly_salary: newCourier.profile.monthly_salary === '' ? 0 : newCourier.profile.monthly_salary
+          rating: newCourier.profile.rating
         }
       };
       
@@ -213,15 +203,8 @@ const Couriers = () => {
       setShowAddModal(false);
       resetForm();
     } catch (error) {
-      if (error.data?.errors) {
-        setErrors(error.data.errors);
-        // Show toaster notification for validation errors
-        const errorMessage = getErrorMessage(error);
-        showToastNotification(errorMessage, 'error');
-      } else {
-        const errorMessage = getErrorMessage(error);
-        showToastNotification(errorMessage, 'error');
-      }
+      const errorMessage = getErrorMessage(error);
+      showToastNotification(errorMessage, 'error');
       console.error('Error creating courier:', error);
     }
   };
@@ -230,7 +213,6 @@ const Couriers = () => {
   const handleEditCourier = async () => {
     try {
       if (!selectedCourier) return;
-      setErrors({});
 
       // Only send changed fields for update
       const updateData = {};
@@ -239,12 +221,6 @@ const Couriers = () => {
       if (newCourier.phone !== selectedCourier.phone) updateData.phone = newCourier.phone;
       if (newCourier.email !== selectedCourier.email) updateData.email = newCourier.email;
       if (newCourier.status !== selectedCourier.status) updateData.status = newCourier.status;
-      if (newCourier.role_type !== selectedCourier.role_type) updateData.role_type = newCourier.role_type;
-      
-      // Check password change (only if password is provided)
-      if (newCourier.password && newCourier.password.trim() !== '') {
-        updateData.password = newCourier.password;
-      }
       if (newCourier.country_id !== selectedCourier.country_id.toString()) updateData.country_id = parseInt(newCourier.country_id);
       if (newCourier.city_id !== selectedCourier.city_id.toString()) updateData.city_id = parseInt(newCourier.city_id);
       
@@ -290,21 +266,6 @@ const Couriers = () => {
       if (newCourier.profile.rating !== selectedCourier.profile?.rating) {
         profileChanges.rating = newCourier.profile.rating;
       }
-      if (newCourier.profile.price_per_delivery !== selectedCourier.profile?.price_per_delivery) {
-        profileChanges.price_per_delivery = newCourier.profile.price_per_delivery === '' ? 0 : newCourier.profile.price_per_delivery;
-      }
-      if (newCourier.profile.balance !== selectedCourier.profile?.balance) {
-        profileChanges.balance = newCourier.profile.balance === '' ? 0 : newCourier.profile.balance;
-      }
-      if (newCourier.profile.cash_balance_for_orders !== selectedCourier.profile?.cash_balance_for_orders) {
-        profileChanges.cash_balance_for_orders = newCourier.profile.cash_balance_for_orders === '' ? 0 : newCourier.profile.cash_balance_for_orders;
-      }
-      if (newCourier.profile.currency !== selectedCourier.profile?.currency) {
-        profileChanges.currency = newCourier.profile.currency;
-      }
-      if (newCourier.profile.monthly_salary !== selectedCourier.profile?.monthly_salary) {
-        profileChanges.monthly_salary = newCourier.profile.monthly_salary === '' ? 0 : newCourier.profile.monthly_salary;
-      }
       
       if (Object.keys(profileChanges).length > 0) {
         updateData.profile = profileChanges;
@@ -320,15 +281,8 @@ const Couriers = () => {
         showToastNotification('Heç bir dəyişiklik edilməyib!', 'error');
       }
     } catch (error) {
-      if (error.data?.errors) {
-        setErrors(error.data.errors);
-        // Show toaster notification for validation errors
-        const errorMessage = getErrorMessage(error);
-        showToastNotification(errorMessage, 'error');
-      } else {
-        const errorMessage = getErrorMessage(error);
-        showToastNotification(errorMessage, 'error');
-      }
+      const errorMessage = getErrorMessage(error);
+      showToastNotification(errorMessage, 'error');
       console.error('Error updating courier:', error);
     }
   };
@@ -451,7 +405,6 @@ const Couriers = () => {
       password: '', // Don't populate password for security
       status: courier.status || 'active',
       profile_type: 'courier',
-      role_type: 'courier',
       country_id: courier.country_id?.toString() || '',
       city_id: courier.city_id?.toString() || '',
       zone_ids: courier.zones?.map(zone => zone.id) || [],
@@ -464,15 +417,9 @@ const Couriers = () => {
         experience: courier.profile?.experience || 1,
         avg_delivery_time: courier.profile?.avg_delivery_time || 0,
         delays: courier.profile?.delays || 0,
-        rating: courier.profile?.rating || 5,
-        price_per_delivery: courier.profile?.price_per_delivery || '',
-        balance: courier.profile?.balance || '',
-        cash_balance_for_orders: courier.profile?.cash_balance_for_orders || '',
-        currency: courier.profile?.currency || 'AZN',
-        monthly_salary: courier.profile?.monthly_salary || ''
+        rating: courier.profile?.rating || 5
       }
     });
-    setErrors({});
     setShowEditModal(true);
   };
 
@@ -590,7 +537,6 @@ const Couriers = () => {
   }
 
   return (
-    <>
     <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -726,31 +672,6 @@ const Couriers = () => {
                   <div className="flex items-center space-x-2">
                     <Package className="w-4 h-4 text-gray-500" />
                     <span className="text-sm text-gray-600">Nömrə: {courier.profile?.plate_number || 'Təyin edilməyib'}</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <TrendingUp className="w-4 h-4 text-green-500" />
-                    <span className="text-sm text-green-600">Çatdırılma Qiyməti: ₼{courier.profile?.price_per_delivery || 0}</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Star className="w-4 h-4 text-yellow-500" />
-                    <span className="text-sm text-yellow-600">Kuryer Balansı: ₼{courier.profile?.balance || 0}</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Package className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm text-blue-600">Müştəri Nağd Pul Balansı: ₼{courier.profile?.cash_balance_for_orders || 0}</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-4 h-4 text-purple-500" />
-                    <span className="text-sm text-purple-600">Valyuta: {courier.profile?.currency || 'AZN'}</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <User className="w-4 h-4 text-indigo-500" />
-                    <span className="text-sm text-indigo-600">Aylıq Maaş: ₼{courier.profile?.monthly_salary || 0}</span>
                   </div>
                 </div>
                 
@@ -917,12 +838,9 @@ const Couriers = () => {
                     type="text"
                     value={newCourier.first_name}
                     onChange={(e) => setNewCourier({...newCourier, first_name: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.first_name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Adı daxil edin"
                   />
-                  {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -931,12 +849,9 @@ const Couriers = () => {
                     type="text"
                     value={newCourier.last_name}
                     onChange={(e) => setNewCourier({...newCourier, last_name: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.last_name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Soyadı daxil edin"
                   />
-                  {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -945,12 +860,9 @@ const Couriers = () => {
                     type="tel"
                     value={newCourier.phone}
                     onChange={(e) => setNewCourier({...newCourier, phone: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.phone ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="+994 50 123 45 67"
                   />
-                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                 </div>
                 
                 <div>
@@ -959,12 +871,9 @@ const Couriers = () => {
                     type="email"
                     value={newCourier.email}
                     onChange={(e) => setNewCourier({...newCourier, email: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="kuryer@example.com"
                   />
-                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email[0]}</p>}
                 </div>
                 
                 <div>
@@ -973,12 +882,9 @@ const Couriers = () => {
                     type="password"
                     value={newCourier.password}
                     onChange={(e) => setNewCourier({...newCourier, password: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.password ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Şifrə daxil edin"
                   />
-                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
                 </div>
                 
                 {countries.length > 1 && (
@@ -989,9 +895,7 @@ const Couriers = () => {
                       onChange={(e) => {
                         setNewCourier({...newCourier, country_id: e.target.value, city_id: '', zone_ids: []});
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        errors.country_id ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Ölkə seçin</option>
                       {countries.map((country) => (
@@ -1000,7 +904,6 @@ const Couriers = () => {
                         </option>
                       ))}
                     </select>
-                    {errors.country_id && <p className="text-red-500 text-xs mt-1">{errors.country_id[0]}</p>}
                   </div>
                 )}
                 
@@ -1014,9 +917,7 @@ const Couriers = () => {
                       const cityChange = handleCityChange(selectedCity?.name, newCourier.zone_ids);
                       setNewCourier({...newCourier, city_id: selectedCityId, ...cityChange});
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.city_id ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Şəhər seçin</option>
                     {cities.map((city) => (
@@ -1025,7 +926,6 @@ const Couriers = () => {
                       </option>
                     ))}
                   </select>
-                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
                 </div>
                 
                 <div>
@@ -1083,162 +983,6 @@ const Couriers = () => {
                     <option value="deactive">Deaktiv</option>
                     <option value="passiv">Passiv</option>
                   </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Orta Çatdırılma Vaxtı (saat)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newCourier.profile.avg_delivery_time}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, avg_delivery_time: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="2.5"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Gecikmə Sayı</label>
-                  <input
-                    type="number"
-                    value={newCourier.profile.delays}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, delays: e.target.value === '' ? '' : parseInt(e.target.value) || 0}})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Reyting (1-5)</label>
-                  <select
-                    value={newCourier.profile.rating}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, rating: parseInt(e.target.value)}})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <option key={rating} value={rating}>
-                        {rating} ulduz
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Qiyməti (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.price_per_delivery}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, price_per_delivery: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.price_per_delivery'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="5.00"
-                  />
-                  {errors['profile.price_per_delivery'] && <p className="text-red-500 text-xs mt-1">{errors['profile.price_per_delivery'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kuryer Balansı (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.balance}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, balance: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.balance'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="0.00"
-                  />
-                  {errors['profile.balance'] && <p className="text-red-500 text-xs mt-1">{errors['profile.balance'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Müştəri Nağd Pul Balansı (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.cash_balance_for_orders}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, cash_balance_for_orders: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.cash_balance_for_orders'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="0.00"
-                  />
-                  {errors['profile.cash_balance_for_orders'] && <p className="text-red-500 text-xs mt-1">{errors['profile.cash_balance_for_orders'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Valyuta</label>
-                  <select
-                    value={newCourier.profile.currency}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, currency: e.target.value}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.currency'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="AZN">AZN</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                  </select>
-                  {errors['profile.currency'] && <p className="text-red-500 text-xs mt-1">{errors['profile.currency'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Aylıq Maaş (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.monthly_salary}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, monthly_salary: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.monthly_salary'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="200.00"
-                  />
-                  {errors['profile.monthly_salary'] && <p className="text-red-500 text-xs mt-1">{errors['profile.monthly_salary'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol Növü</label>
-                  <select
-                    value={newCourier.role_type}
-                    onChange={(e) => setNewCourier({...newCourier, role_type: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="courier">Kuryer</option>
-                    <option value="admin">Admin</option>
-                    <option value="employee">İşçi</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rollar</label>
-                  <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
-                    {roles.map((role) => (
-                      <label key={role.id} className="flex items-center space-x-2 py-1">
-                        <input
-                          type="checkbox"
-                          checked={newCourier.role_ids.includes(role.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewCourier({
-                                ...newCourier,
-                                role_ids: [...newCourier.role_ids, role.id]
-                              });
-                            } else {
-                              setNewCourier({
-                                ...newCourier,
-                                role_ids: newCourier.role_ids.filter(id => id !== role.id)
-                              });
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{role.name}</span>
-                      </label>
-                    ))}
-                  </div>
                 </div>
                 
                 <div>
@@ -1289,7 +1033,8 @@ const Couriers = () => {
               </button>
               <button
                 onClick={handleAddCourier}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={!newCourier.first_name || !newCourier.last_name || !newCourier.phone || !newCourier.email || !newCourier.password || !newCourier.city_id}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Əlavə Et
               </button>
@@ -1320,12 +1065,9 @@ const Couriers = () => {
                     type="text"
                     value={newCourier.first_name}
                     onChange={(e) => setNewCourier({...newCourier, first_name: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.first_name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Adı daxil edin"
                   />
-                  {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -1334,12 +1076,9 @@ const Couriers = () => {
                     type="text"
                     value={newCourier.last_name}
                     onChange={(e) => setNewCourier({...newCourier, last_name: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.last_name ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Soyadı daxil edin"
                   />
-                  {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -1348,12 +1087,9 @@ const Couriers = () => {
                     type="tel"
                     value={newCourier.phone}
                     onChange={(e) => setNewCourier({...newCourier, phone: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.phone ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="+994 50 123 45 67"
                   />
-                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                 </div>
                 
                 <div>
@@ -1362,26 +1098,9 @@ const Couriers = () => {
                     type="email"
                     value={newCourier.email}
                     onChange={(e) => setNewCourier({...newCourier, email: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="kuryer@example.com"
                   />
-                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email[0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Yeni Şifrə (İstəyə bağlı)</label>
-                  <input
-                    type="password"
-                    value={newCourier.password}
-                    onChange={(e) => setNewCourier({...newCourier, password: e.target.value})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.password ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Yeni şifrə daxil edin (boş buraxa bilərsiniz)"
-                  />
-                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
                 </div>
                 
                 <div>
@@ -1394,9 +1113,7 @@ const Couriers = () => {
                       const cityChange = handleCityChange(selectedCity?.name, newCourier.zone_ids);
                       setNewCourier({...newCourier, city_id: selectedCityId, ...cityChange});
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors.city_id ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Şəhər seçin</option>
                     {cities.map((city) => (
@@ -1405,7 +1122,6 @@ const Couriers = () => {
                       </option>
                     ))}
                   </select>
-                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
                 </div>
                 
                 <div>
@@ -1466,162 +1182,6 @@ const Couriers = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Orta Çatdırılma Vaxtı (saat)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newCourier.profile.avg_delivery_time}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, avg_delivery_time: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="2.5"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Gecikmə Sayı</label>
-                  <input
-                    type="number"
-                    value={newCourier.profile.delays}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, delays: e.target.value === '' ? '' : parseInt(e.target.value) || 0}})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Reyting (1-5)</label>
-                  <select
-                    value={newCourier.profile.rating}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, rating: parseInt(e.target.value)}})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <option key={rating} value={rating}>
-                        {rating} ulduz
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Çatdırılma Qiyməti (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.price_per_delivery}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, price_per_delivery: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.price_per_delivery'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="5.00"
-                  />
-                  {errors['profile.price_per_delivery'] && <p className="text-red-500 text-xs mt-1">{errors['profile.price_per_delivery'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Kuryer Balansı (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.balance}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, balance: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.balance'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="0.00"
-                  />
-                  {errors['profile.balance'] && <p className="text-red-500 text-xs mt-1">{errors['profile.balance'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Müştəri Nağd Pul Balansı (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.cash_balance_for_orders}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, cash_balance_for_orders: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.cash_balance_for_orders'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="0.00"
-                  />
-                  {errors['profile.cash_balance_for_orders'] && <p className="text-red-500 text-xs mt-1">{errors['profile.cash_balance_for_orders'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Valyuta</label>
-                  <select
-                    value={newCourier.profile.currency}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, currency: e.target.value}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.currency'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="AZN">AZN</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                  </select>
-                  {errors['profile.currency'] && <p className="text-red-500 text-xs mt-1">{errors['profile.currency'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Aylıq Maaş (₼)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newCourier.profile.monthly_salary}
-                    onChange={(e) => setNewCourier({...newCourier, profile: {...newCourier.profile, monthly_salary: e.target.value === '' ? '' : parseFloat(e.target.value) || 0}})}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      errors['profile.monthly_salary'] ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="200.00"
-                  />
-                  {errors['profile.monthly_salary'] && <p className="text-red-500 text-xs mt-1">{errors['profile.monthly_salary'][0]}</p>}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol Növü</label>
-                  <select
-                    value={newCourier.role_type}
-                    onChange={(e) => setNewCourier({...newCourier, role_type: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="courier">Kuryer</option>
-                    <option value="admin">Admin</option>
-                    <option value="employee">İşçi</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rollar</label>
-                  <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
-                    {roles.map((role) => (
-                      <label key={role.id} className="flex items-center space-x-2 py-1">
-                        <input
-                          type="checkbox"
-                          checked={newCourier.role_ids.includes(role.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewCourier({
-                                ...newCourier,
-                                role_ids: [...newCourier.role_ids, role.id]
-                              });
-                            } else {
-                              setNewCourier({
-                                ...newCourier,
-                                role_ids: newCourier.role_ids.filter(id => id !== role.id)
-                              });
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{role.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Təyin Edilmiş Zonalar</label>
                   <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
                     {newCourier.city_id ? (
@@ -1669,7 +1229,8 @@ const Couriers = () => {
               </button>
               <button
                 onClick={handleEditCourier}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={!newCourier.first_name || !newCourier.last_name || !newCourier.phone || !newCourier.email || !newCourier.password || !newCourier.city_id}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Yenilə
               </button>
@@ -1841,63 +1402,6 @@ const Couriers = () => {
                     </div>
                   </div>
 
-                  {/* Financial Information */}
-                  <div className="bg-gray-50 p-4 rounded-xl">
-                    <h5 className="font-medium text-gray-800 mb-3 flex items-center">
-                      <Star className="w-5 h-5 mr-2 text-yellow-600" />
-                      Maliyyə Məlumatları
-                    </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <TrendingUp className="w-4 h-4 text-green-500" />
-                          <span className="text-sm font-medium text-gray-600">Çatdırılma Qiyməti</span>
-                        </div>
-                        <p className="text-xl font-bold text-green-600">₼{selectedCourier.profile?.price_per_delivery || 0}</p>
-                      </div>
-                      
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          <span className="text-sm font-medium text-gray-600">Kuryer Balansı</span>
-                        </div>
-                        <p className="text-xl font-bold text-yellow-600">₼{selectedCourier.profile?.balance || 0}</p>
-                      </div>
-                      
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Package className="w-4 h-4 text-blue-500" />
-                          <span className="text-sm font-medium text-gray-600">Müştəri Nağd Pul Balansı</span>
-                        </div>
-                        <p className="text-xl font-bold text-blue-600">₼{selectedCourier.profile?.cash_balance_for_orders || 0}</p>
-                      </div>
-                      
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Clock className="w-4 h-4 text-purple-500" />
-                          <span className="text-sm font-medium text-gray-600">Valyuta</span>
-                        </div>
-                        <p className="text-xl font-bold text-purple-600">{selectedCourier.profile?.currency || 'AZN'}</p>
-                      </div>
-                      
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <User className="w-4 h-4 text-indigo-500" />
-                          <span className="text-sm font-medium text-gray-600">Aylıq Maaş</span>
-                        </div>
-                        <p className="text-xl font-bold text-indigo-600">₼{selectedCourier.profile?.monthly_salary || 0}</p>
-                      </div>
-                      
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium text-gray-600">Orta Çatdırılma Vaxtı</span>
-                        </div>
-                        <p className="text-xl font-bold text-gray-600">{selectedCourier.profile?.avg_delivery_time || 0} saat</p>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Assigned Zones */}
                   <div className="bg-gray-50 p-4 rounded-xl">
                     <h5 className="font-medium text-gray-800 mb-3 flex items-center">
@@ -1969,7 +1473,7 @@ const Couriers = () => {
                             <tr key={order.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-3 text-sm font-medium text-gray-900">#{order.id}</td>
                                 <td className="px-4 py-3 text-sm text-gray-700">Müştəri #{order.customer_id}</td>
-                                <td className="px-4 py-3 text-sm text-gray-700">{order.discounted_price_for_total_order || order.total_order_price} AZN</td>
+                                <td className="px-4 py-3 text-sm text-gray-700">{order.total_order_price} AZN</td>
                               <td className="px-4 py-3">
                                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                                     order.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -2260,29 +1764,22 @@ const Couriers = () => {
       {showToast && (
         <div className="fixed top-4 right-4 z-[9999]">
           <div
-            className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
+            className={`flex items-center space-x-3 px-6 py-4 rounded-lg shadow-lg border-l-4 ${
               toastType === "success"
-                ? "bg-green-500 text-white"
-                : "bg-red-500 text-white"
+                ? "bg-green-50 text-green-800 border-green-400"
+                : "bg-red-50 text-red-800 border-red-400"
             }`}
           >
             {toastType === "success" ? (
-              <CheckCircle className="w-5 h-5" />
+              <CheckCircle className="w-5 h-5 text-green-600" />
             ) : (
-              <AlertTriangle className="w-5 h-5" />
+              <AlertTriangle className="w-5 h-5 text-red-600" />
             )}
             <span>{toastMessage}</span>
-            <button
-              onClick={() => setShowToast(false)}
-              className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
         </div>
       )}
     </div>
-    </>
   );
 };
 

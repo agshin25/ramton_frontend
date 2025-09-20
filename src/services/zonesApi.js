@@ -9,6 +9,9 @@ export const zonesApi = createApi({
     getZones: builder.query({
       query: () => "/zones",
       providesTags: ["Zones"],
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
     }),
     createZone: builder.mutation({
       query: (zone) => ({

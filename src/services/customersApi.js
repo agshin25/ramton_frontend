@@ -9,29 +9,32 @@ export const customersApi = createApi({
     getCustomers: builder.query({
       query: () => "/customers",
       providesTags: ["Customers"],
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
     }),
     createCustomer: builder.mutation({
       query: (customer) => ({
         url: "/customers",
         method: "POST",
         body: customer,
-        invalidatesTags: ["Customers"],
       }),
+      invalidatesTags: ["Customers"],
     }),
     updateCustomer: builder.mutation({
       query: ({id, ...customer}) => ({
         url: `/customers/${id}`,
         method: "PUT",
         body: customer,
-        invalidatesTags: ["Customers"],
       }),
+      invalidatesTags: ["Customers"],
     }),
     deleteCustomer: builder.mutation({
       query: (id) => ({
         url: `/customers/${id}`,
         method: "DELETE",
-        invalidatesTags: ["Customers"],
       }),
+      invalidatesTags: ["Customers"],
     }),
   }),
 });

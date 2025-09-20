@@ -9,19 +9,17 @@ import {
   User, 
   Shield, 
   TrendingUp,
-  CheckCircle,
   AlertCircle
 } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isLoggingIn, authError } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginError, setLoginError] = useState('');
 
@@ -68,48 +66,24 @@ const Login = () => {
       return;
     }
 
-    setIsLoading(true);
     setLoginError('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const result = await login(formData);
       
-      // Demo credentials
-      if (formData.email === 'admin@ramton.az' && formData.password === '123456') {
-        const userData = {
-          id: 1,
-          name: 'Admin User',
-          email: formData.email,
-          role: 'admin',
-          avatar: 'A'
-        };
-        
-        // Store authentication data
-        localStorage.setItem('ramton_auth', JSON.stringify({
-          user: userData,
-          token: 'demo_token_' + Date.now(),
-          isAuthenticated: true
-        }));
-        
-        login(userData);
+      if (result.success) {
         navigate('/');
       } else {
-        setLoginError('Email və ya şifrə yanlışdır');
+        setLoginError(result.error || 'Giriş zamanı xəta baş verdi');
       }
     } catch (error) {
       setLoginError('Giriş zamanı xəta baş verdi. Yenidən cəhd edin.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const demoLogin = () => {
-    setFormData({
-      email: 'admin@ramton.az',
-      password: '123456'
-    });
-  };
+
+  // Use authError from context or local loginError
+  const displayError = authError || loginError;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50 flex items-center justify-center p-4">
@@ -155,7 +129,7 @@ const Login = () => {
                   className={`block w-full pl-10 pr-3 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ${
                     errors.email ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="admin@ramton.az"
+                  placeholder="email@example.com"
                 />
               </div>
               {errors.email && (
@@ -228,11 +202,11 @@ const Login = () => {
             </div>
 
             {/* Login Error */}
-            {loginError && (
+            {displayError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                 <div className="flex items-center">
                   <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-                  <p className="text-sm text-red-600">{loginError}</p>
+                  <p className="text-sm text-red-600">{displayError}</p>
                 </div>
               </div>
             )}
@@ -240,10 +214,10 @@ const Login = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoggingIn}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-xl font-medium hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
             >
-              {isLoading ? (
+              {isLoggingIn ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                   Giriş edilir...
@@ -256,28 +230,8 @@ const Login = () => {
               )}
             </button>
 
-            {/* Demo Login Button */}
-            <button
-              type="button"
-              onClick={demoLogin}
-              className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 transition-all duration-300 flex items-center justify-center"
-            >
-              <User className="w-5 h-5 mr-2" />
-              Demo Giriş
-            </button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl">
-            <h3 className="text-sm font-medium text-blue-800 mb-2 flex items-center">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Demo Hesab Məlumatları
-            </h3>
-            <div className="text-xs text-blue-700 space-y-1">
-              <p><strong>Email:</strong> admin@ramton.az</p>
-              <p><strong>Şifrə:</strong> 123456</p>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

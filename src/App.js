@@ -40,7 +40,7 @@ import Reports from './components/Reports';
 import Login from './components/Login';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import ProblemTracking from './components/ProblemTracking';
-import CourierSettlement from './components/CrierSettlement';
+import CourierSettlement from './components/CourierSettlement';
 import DailyTasks from './components/DailyTasks';
 
 // Notification Context
@@ -177,16 +177,16 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       <div className={`
         fixed top-0 left-0 h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl z-50 transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-auto
-        w-64 border-r border-slate-700 flex flex-col
+        w-52 border-r border-slate-700 flex flex-col
       `}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-700 bg-gradient-to-r from-blue-600 to-purple-600">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-2xl">🚀</span>
+        <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center shadow-lg">
+              <span className="text-sm">🚀</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Ramton CRM</h1>
-              <p className="text-blue-100 text-sm">İdarəetmə Paneli</p>
+              <h1 className="text-base font-bold text-white">Ramton CRM</h1>
+              <p className="text-blue-100 text-xs">İdarəetmə Paneli</p>
             </div>
           </div>
           <button 
@@ -197,11 +197,11 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           </button>
         </div>
         
-        <nav className="flex-1 overflow-y-auto p-4">
+        <nav className="flex-1 overflow-y-auto p-1.5 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
           {/* Main Sections */}
-          <div className="mb-6">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Əsas Bölmələr</h3>
-            <ul className="space-y-1">
+          <div className="mb-2">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 px-2">Əsas Bölmələr</h3>
+            <ul className="space-y-0">
               {menuItems.slice(0, 4).map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
@@ -211,7 +211,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     <Link
                       to={item.path}
                       className={`
-                        flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200
+                        flex items-center space-x-2 px-2 py-1 rounded-lg transition-all duration-200
                         ${isActive 
                           ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
                           : 'text-slate-300 hover:bg-slate-700 hover:text-white hover:transform hover:scale-105'
@@ -219,12 +219,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                       `}
                       onClick={() => window.innerWidth < 1024 && toggleSidebar()}
                     >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      <div className={`w-7 h-7 rounded flex items-center justify-center ${
                         isActive ? 'bg-white bg-opacity-20' : 'bg-slate-700'
                       }`}>
-                        <Icon className="w-5 h-5" />
+                        <Icon className="w-3 h-3" />
                       </div>
-                      <span className="font-medium">{item.name}</span>
+                      <span className="font-medium text-xs">{item.name}</span>
                     </Link>
                   </li>
                 );
@@ -233,9 +233,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           </div>
           
           {/* Employee Operations */}
-          <div className="mb-6">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Əməkdaş Əməliyyatları</h3>
-            <ul className="space-y-1">
+          <div className="mb-2">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 px-2">Əməkdaş Əməliyyatları</h3>
+            <ul className="space-y-0">
               {menuItems.slice(4, 8).map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
@@ -245,7 +245,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     <Link
                       to={item.path}
                       className={`
-                        flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200
+                        flex items-center space-x-2 px-2 py-1 rounded-lg transition-all duration-200
                         ${isActive 
                           ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
                           : 'text-slate-300 hover:bg-slate-700 hover:text-white hover:transform hover:scale-105'
@@ -253,12 +253,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                       `}
                       onClick={() => window.innerWidth < 1024 && toggleSidebar()}
                     >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      <div className={`w-7 h-7 rounded flex items-center justify-center ${
                         isActive ? 'bg-white bg-opacity-20' : 'bg-slate-700'
                       }`}>
-                        <Icon className="w-5 h-5" />
+                        <Icon className="w-3 h-3" />
                       </div>
-                      <span className="font-medium">{item.name}</span>
+                      <span className="font-medium text-xs">{item.name}</span>
                     </Link>
                   </li>
                 );
@@ -268,8 +268,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           
           {/* System */}
           <div>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-2">Sistem</h3>
-            <ul className="space-y-1">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 px-2">Sistem</h3>
+            <ul className="space-y-0">
               {menuItems.slice(8).map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
@@ -279,7 +279,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     <Link
                       to={item.path}
                       className={`
-                        flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200
+                        flex items-center space-x-2 px-2 py-1 rounded-lg transition-all duration-200
                         ${isActive 
                           ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105' 
                           : 'text-slate-300 hover:bg-slate-700 hover:text-white hover:transform hover:scale-105'
@@ -287,12 +287,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                       `}
                       onClick={() => window.innerWidth < 1024 && toggleSidebar()}
                     >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      <div className={`w-7 h-7 rounded flex items-center justify-center ${
                         isActive ? 'bg-white bg-opacity-20' : 'bg-slate-700'
                       }`}>
-                        <Icon className="w-5 h-5" />
+                        <Icon className="w-3 h-3" />
                       </div>
-                      <span className="font-medium">{item.name}</span>
+                      <span className="font-medium text-xs">{item.name}</span>
                     </Link>
                   </li>
                 );
@@ -302,9 +302,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         </nav>
         
         {/* Bottom spacing */}
-        <div className="p-4 border-t border-slate-700 bg-slate-800">
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+        <div className="p-1.5 border-t border-slate-700 bg-slate-800">
+          <div className="flex items-center justify-center space-x-1.5 mb-0.5">
+            <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
             <span className="text-xs text-green-400 font-medium">Sistem Aktiv</span>
           </div>
           <div className="text-xs text-slate-400 text-center">
@@ -322,7 +322,7 @@ const Header = ({ toggleSidebar }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoggingOut } = useAuth();
 
   // Close notifications when clicking outside
   React.useEffect(() => {
@@ -482,32 +482,48 @@ const Header = ({ toggleSidebar }) => {
 
             {/* User Dropdown Menu */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-[9999]">
                 <div className="p-4 border-b border-gray-100">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">{user?.avatar || 'A'}</span>
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-sm font-semibold">
+                        {user?.first_name?.[0]}{user?.last_name?.[0] || 'A'}
+                      </span>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{user?.name || 'Admin User'}</p>
-                      <p className="text-xs text-gray-500">{user?.email || 'admin@ramton.az'}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'Admin User'}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate mt-1">
+                        {user?.email || 'admin@ramton.az'}
+                      </p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="p-2">
+                <div className="p-3">
                   <button
-                    onClick={() => {
-                      logout();
+                    onClick={async () => {
+                      await logout();
                       setShowUserMenu(false);
                       navigate('/login');
                     }}
-                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center"
+                    disabled={isLoggingOut}
+                    className="w-full text-left px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Çıxış Et
+                    {isLoggingOut ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        <span>Çıxış edilir...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Çıxış Et</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -609,9 +625,9 @@ function App() {
                       <Routes>
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/emekdas-dashboard" element={<EmployeeDashboard />} />
-                                      <Route path="/problem-izleme" element={<ProblemTracking />} />
-              <Route path="/gunluk-tapshiriqlar" element={<DailyTasks />} />
-              <Route path="/sifarisler" element={<Orders />} />
+                        <Route path="/problem-izleme" element={<ProblemTracking />} />
+                        <Route path="/gunluk-tapshiriqlar" element={<DailyTasks />} />
+                        <Route path="/sifarisler" element={<Orders />} />
                         <Route path="/sifaris-statistikasi" element={<OrderStatistics />} />
                         <Route path="/mehsullar" element={<Products />} />
                         <Route path="/kateqoriyalar" element={<Categories />} />

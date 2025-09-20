@@ -10,6 +10,9 @@ export const categoriesApi = createApi({
         getCategories: builder.query({
             query: () => "/categories",
             providesTags: ["Categories"],
+            refetchOnMountOrArgChange: true,
+            refetchOnFocus: true,
+            refetchOnReconnect: true,
         }),
         createCategory: builder.mutation({
             query: (category) => ({

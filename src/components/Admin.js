@@ -15,59 +15,33 @@ import {
   ChevronsLeft, 
   ChevronsRight,
   Calendar,
-  Lock,
-  TrendingUp
+  TrendingUp,
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
+import { 
+  useGetAdminsQuery, 
+  useGetAdminQuery,
+  useCreateAdminMutation, 
+  useUpdateAdminMutation, 
+  useDeleteAdminMutation 
+} from '../services/adminsApi';
+import { useGetRolesQuery } from '../services/rolesApi';
+import { useGetCountriesQuery } from '../services/countriesApi';
 
-export const employees = [
-  {
-    id: 1,
-    name: 'Əli Məmmədov',
-    email: 'ali@example.com',
-    role: 'Satış Məsləhətçisi',
-    status: 'Aktiv',
-    phone: '+994 50 123 45 67',
-    whatsapp: '@ali_mammadov'
-  },
-  {
-    id: 2,
-    name: 'Aysu Həsənli',
-    email: 'aysu@example.com',
-    role: 'Satış Məsləhətçisi',
-    status: 'Aktiv',
-    phone: '+994 51 234 56 78',
-    whatsapp: '@aysu_hasanli'
-  },
-  {
-    id: 3,
-    name: 'Fatma Əliyeva',
-    email: 'fatma@example.com',
-    role: 'Satış Məsləhətçisi',
-    status: 'Aktiv',
-    phone: '+994 55 345 67 89',
-    whatsapp: '@fatma_aliyeva'
-  },
-  {
-    id: 4,
-    name: 'Rəşad Əhmədov',
-    email: 'rashad@example.com',
-    role: 'Satış Məsləhətçisi',
-    status: 'Aktiv',
-    phone: '+994 70 456 78 90',
-    whatsapp: '@rashad_ahmadov'
-  },
-  {
-    id: 5,
-    name: 'Leyla Məmmədli',
-    email: 'leyla@example.com',
-    role: 'Satış Məsləhətçisi',
-    status: 'Aktiv',
-    phone: '+994 77 567 89 01',
-    whatsapp: '@leyla_mammadli'
-  }
-];
+
 
 const Admin = () => {
+  // API hooks
+  const { data: adminsData, isLoading: adminsLoading } = useGetAdminsQuery();
+  const { data: rolesData } = useGetRolesQuery();
+  const { data: countriesData } = useGetCountriesQuery();
+  
+  const [createAdmin, { isLoading: isCreating }] = useCreateAdminMutation();
+  const [updateAdmin, { isLoading: isUpdating }] = useUpdateAdminMutation();
+  const [deleteAdmin, { isLoading: isDeleting }] = useDeleteAdminMutation();
+
   // State management
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -83,18 +57,28 @@ const Admin = () => {
   const [showDeleteAdminModal, setShowDeleteAdminModal] = useState(false);
   const [showViewAdminModal, setShowViewAdminModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
+  
+  // Get single admin details for view modal
+  const { data: adminDetails, isLoading: adminDetailsLoading } = useGetAdminQuery(selectedAdmin?.id, {
+    skip: !selectedAdmin?.id
+  });
+  
   const [newAdmin, setNewAdmin] = useState({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
-    role: 'Admin',
-    roleId: 'admin',
-    status: 'Aktiv',
-    permissions: [],
-    joinDate: '',
-    lastLogin: '',
-    notes: ''
+    role_type: 'admin',
+    status: 'active',
+    country_id: '',
+    city_id: '',
+    role_ids: [],
+    password: ''
   });
+
+  // Toast notification states
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [errors, setErrors] = useState({});
 
   // Employee modal states
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
@@ -103,173 +87,59 @@ const Admin = () => {
   const [showViewEmployeeModal, setShowViewEmployeeModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [newEmployee, setNewEmployee] = useState({
-    name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
-    whatsapp: '',
-    role: 'Satış Məsləhətçisi',
-    status: 'Aktiv',
-    department: '',
-    joinDate: '',
-    salary: '',
-    notes: ''
+    role_type: 'employee',
+    status: 'active',
+    country_id: '',
+    city_id: '',
+    role_ids: [],
+    password: ''
   });
 
-  // Sample admins data
-  const initialAdmins = [
-    {
-      id: 1,
-      name: 'Admin User',
-      email: 'admin@example.com',
-      phone: '+994 50 111 11 11',
-      role: 'Super Admin',
-      roleId: 'super_admin',
-      status: 'Aktiv',
-      permissions: ['all'],
-      joinDate: '2023-01-01',
-      lastLogin: '2024-01-25 14:30',
-      notes: 'Sistem administratoru'
-    },
-    {
-      id: 2,
-      name: 'Moderator',
-      email: 'mod@example.com',
-      phone: '+994 51 222 22 22',
-      role: 'Moderator',
-      roleId: 'moderator',
-      status: 'Aktiv',
-      permissions: ['dashboard', 'orders', 'customers', 'products', 'categories', 'couriers', 'zones', 'reports'],
-      joinDate: '2023-03-15',
-      lastLogin: '2024-01-24 16:45',
-      notes: 'Sifariş və müştəri idarəetməsi'
-    },
-    {
-      id: 3,
-      name: 'Support',
-      email: 'support@example.com',
-      phone: '+994 55 333 33 33',
-      role: 'Support',
-      roleId: 'support',
-      status: 'Aktiv',
-      permissions: ['dashboard', 'orders', 'customers', 'reports'],
-      joinDate: '2023-06-20',
-      lastLogin: '2024-01-25 09:15',
-      notes: 'Müştəri dəstəyi'
-    },
-    {
-      id: 4,
-      name: 'Manager',
-      email: 'manager@example.com',
-      phone: '+994 70 444 44 44',
-      role: 'Manager',
-      roleId: 'manager',
-      status: 'Gözləyir',
-      permissions: ['dashboard', 'orders', 'products', 'employees', 'reports', 'analytics'],
-      joinDate: '2024-01-10',
-      lastLogin: '2024-01-20 11:20',
-      notes: 'Yeni əlavə edilmiş'
-    },
-    {
-      id: 5,
-      name: 'Analitik',
-      email: 'analyst@example.com',
-      phone: '+994 77 555 55 55',
-      role: 'Analitik',
-      roleId: 'analyst',
-      status: 'Aktiv',
-      permissions: ['dashboard', 'reports', 'analytics', 'logs'],
-      joinDate: '2023-09-01',
-      lastLogin: '2024-01-25 10:30',
-      notes: 'Məlumat analizi və hesabatlar'
-    }
-  ];
+  // Process API data
+  const admins = adminsData?.data?.filter(admin => admin.role_type === 'admin') || [];
+  const employees = adminsData?.data?.filter(admin => admin.role_type === 'employee') || [];
 
-  const [admins, setAdmins] = useState(initialAdmins);
-  const [employeesList, setEmployeesList] = useState(employees);
-
-  // Available roles and permissions
-  const adminRoles = [
-    { id: 'super_admin', name: 'Super Admin', color: 'bg-red-100 text-red-800' },
-    { id: 'admin', name: 'Admin', color: 'bg-blue-100 text-blue-800' },
-    { id: 'moderator', name: 'Moderator', color: 'bg-purple-100 text-purple-800' },
-    { id: 'support', name: 'Support', color: 'bg-green-100 text-green-800' },
-    { id: 'manager', name: 'Manager', color: 'bg-orange-100 text-orange-800' },
-    { id: 'analyst', name: 'Analitik', color: 'bg-indigo-100 text-indigo-800' }
-  ];
-
-  const employeeRoles = [
-    { id: 'sales_consultant', name: 'Satış Məsləhətçisi', color: 'bg-green-100 text-green-800' },
-    { id: 'courier', name: 'Kuryer', color: 'bg-blue-100 text-blue-800' },
-    { id: 'warehouse', name: 'Anbarçı', color: 'bg-yellow-100 text-yellow-800' },
-    { id: 'accountant', name: 'Mühasib', color: 'bg-purple-100 text-purple-800' },
-    { id: 'marketing', name: 'Marketinq', color: 'bg-pink-100 text-pink-800' },
-    { id: 'customer_service', name: 'Müştəri Xidməti', color: 'bg-teal-100 text-teal-800' },
-    { id: 'supervisor', name: 'Nəzarətçi', color: 'bg-gray-100 text-gray-800' }
-  ];
-
-  const departments = [
-    'Satış', 'Kuryerlik', 'Anbar', 'Mühasibat', 'Marketinq', 'Dəstək', 'İnsan Resursları', 'Texniki Dəstək'
-  ];
-
-  const permissions = [
-    { id: 'all', name: 'Bütün İcazələr', description: 'Tam sistemə giriş' },
-    { id: 'dashboard', name: 'Dashboard', description: 'Ana səhifə və statistikalar' },
-    { id: 'orders', name: 'Sifarişlər', description: 'Sifariş idarəetməsi' },
-    { id: 'customers', name: 'Müştərilər', description: 'Müştəri idarəetməsi' },
-    { id: 'products', name: 'Məhsullar', description: 'Məhsul idarəetməsi' },
-    { id: 'categories', name: 'Kateqoriyalar', description: 'Kateqoriya idarəetməsi' },
-    { id: 'couriers', name: 'Kuryerlər', description: 'Kuryer idarəetməsi' },
-    { id: 'zones', name: 'Zonalar', description: 'Zona idarəetməsi' },
-    { id: 'employees', name: 'Əməkdaşlar', description: 'Əməkdaş idarəetməsi' },
-    { id: 'admins', name: 'Adminlər', description: 'Admin idarəetməsi' },
-    { id: 'reports', name: 'Hesabatlar', description: 'Hesabat və analitika' },
-    { id: 'analytics', name: 'Analitika', description: 'Detallı analitika' },
-    { id: 'settings', name: 'Tənzimləmələr', description: 'Sistem tənzimləmələri' },
-    { id: 'users', name: 'İstifadəçilər', description: 'İstifadəçi idarəetməsi' },
-    { id: 'logs', name: 'Loglar', description: 'Sistem logları' },
-    { id: 'backup', name: 'Yedəkləmə', description: 'Məlumat yedəkləmə' }
-  ];
-
-  // Default permissions for each role
-  const defaultRolePermissions = {
-    super_admin: ['all'],
-    admin: ['dashboard', 'orders', 'customers', 'products', 'categories', 'couriers', 'zones', 'employees', 'reports', 'analytics', 'settings'],
-    moderator: ['dashboard', 'orders', 'customers', 'products', 'categories', 'couriers', 'zones', 'reports'],
-    support: ['dashboard', 'orders', 'customers', 'reports'],
-    manager: ['dashboard', 'orders', 'products', 'employees', 'reports', 'analytics'],
-    analyst: ['dashboard', 'reports', 'analytics', 'logs']
+  // Toast notification component
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 5000);
   };
+
+  // Available roles from API
+  const adminRoles = rolesData?.data || [];
+
+
+
+
 
   // Helper functions
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Aktiv': return 'bg-green-100 text-green-800';
-      case 'Gözləyir': return 'bg-yellow-100 text-yellow-800';
-      case 'Passiv': return 'bg-red-100 text-red-800';
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'deactive': return 'bg-red-100 text-red-800';
+      case 'passiv': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getRoleColor = (role) => {
-    const adminRole = adminRoles.find(r => r.name === role);
-    const employeeRole = employeeRoles.find(r => r.name === role);
-    
-    if (adminRole) return adminRole.color;
-    if (employeeRole) return employeeRole.color;
-    return 'bg-gray-100 text-gray-800';
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'active': return 'Aktiv';
+      case 'deactive': return 'Deaktiv';
+      case 'passiv': return 'Passiv';
+      default: return status;
+    }
   };
 
-  // Helper functions for role management (used in role selection)
-  const getRoleById = (roleId) => {
-    const adminRole = adminRoles.find(r => r.id === roleId);
-    const employeeRole = employeeRoles.find(r => r.id === roleId);
-    
-    return adminRole || employeeRole;
+  const getRoleColor = (roleId) => {
+    const role = adminRoles.find(r => r.id === roleId);
+    return role ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
   };
 
-  const getDefaultPermissionsForRole = (roleId) => {
-    return defaultRolePermissions[roleId] || [];
-  };
 
   const getInitials = (name) => {
     return name.split(' ').map(word => word.charAt(0)).join('').toUpperCase();
@@ -277,20 +147,22 @@ const Admin = () => {
 
   // Filtering logic
   const filteredAdmins = admins.filter(admin => {
-    const matchesSearch = admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const fullName = `${admin.first_name} ${admin.last_name}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
                          admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          admin.phone.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || admin.status === statusFilter;
-    const matchesRole = roleFilter === 'all' || admin.role === roleFilter;
+    const matchesRole = roleFilter === 'all' || (admin.roles && admin.roles.some(role => role.name === roleFilter));
     return matchesSearch && matchesStatus && matchesRole;
   });
 
-  const filteredEmployees = employeesList.filter(employee => {
-    const matchesSearch = employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredEmployees = employees.filter(employee => {
+    const fullName = `${employee.first_name} ${employee.last_name}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
                          employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          employee.phone.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || employee.status === statusFilter;
-    const matchesRole = roleFilter === 'all' || employee.role === roleFilter;
+    const matchesRole = roleFilter === 'all' || (employee.roles && employee.roles.some(role => role.name === roleFilter));
     return matchesSearch && matchesStatus && matchesRole;
   });
 
@@ -352,55 +224,99 @@ const Admin = () => {
   };
 
   // CRUD functions for Admins
-  const handleAddAdmin = () => {
-    const newId = Math.max(...admins.map(a => a.id)) + 1;
-    const adminToAdd = {
+  const handleAddAdmin = async () => {
+    try {
+      setErrors({});
+      const adminData = {
       ...newAdmin,
-      id: newId,
-      joinDate: newAdmin.joinDate || new Date().toISOString().split('T')[0],
-      lastLogin: '-'
+        role_type: 'admin',
+        profile_type: null
     };
-    setAdmins([...admins, adminToAdd]);
+      
+      await createAdmin(adminData).unwrap();
+      showToast('Admin uğurla əlavə edildi', 'success');
     setNewAdmin({
-      name: '',
+        first_name: '',
+        last_name: '',
       email: '',
       phone: '',
-      role: 'Admin',
-      roleId: 'admin',
-      status: 'Aktiv',
-      permissions: [],
-      joinDate: '',
-      lastLogin: '',
-      notes: ''
+        role_type: 'admin',
+        status: 'active',
+        country_id: '',
+        city_id: '',
+        role_ids: [],
+        password: ''
     });
     setShowAddAdminModal(false);
+    } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        showToast('Zəhmət olmasa bütün xətaları düzəldin!', 'error');
+      } else {
+        showToast(error.data?.message || 'Xəta baş verdi', 'error');
+      }
+    }
   };
 
-  const handleEditAdmin = () => {
-    setAdmins(admins.map(admin => 
-      admin.id === selectedAdmin.id ? { ...selectedAdmin, ...newAdmin } : admin
-    ));
+  const handleEditAdmin = async () => {
+    try {
+      setErrors({});
+      const adminData = {
+        first_name: newAdmin.first_name,
+        last_name: newAdmin.last_name,
+        email: newAdmin.email,
+        phone: newAdmin.phone,
+        status: newAdmin.status,
+        country_id: newAdmin.country_id,
+        city_id: newAdmin.city_id,
+        role_ids: newAdmin.role_ids,
+        role_type: 'admin',
+        profile_type: null
+      };
+      
+      // Only include password if it's provided and not empty
+      if (newAdmin.password && newAdmin.password.trim() !== '') {
+        adminData.password = newAdmin.password;
+      }
+      
+      await updateAdmin({ id: selectedAdmin.id, ...adminData }).unwrap();
+      showToast('Admin uğurla yeniləndi', 'success');
     setShowEditAdminModal(false);
+    } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        showToast('Zəhmət olmasa bütün xətaları düzəldin!', 'error');
+      } else {
+        showToast(error.data?.message || 'Xəta baş verdi', 'error');
+      }
+    }
   };
 
-  const handleDeleteAdmin = () => {
-    setAdmins(admins.filter(admin => admin.id !== selectedAdmin.id));
+  const handleDeleteAdmin = async () => {
+    try {
+      await deleteAdmin(selectedAdmin.id).unwrap();
+      showToast('Admin uğurla silindi', 'success');
     setShowDeleteAdminModal(false);
+    } catch (error) {
+      showToast(error.data?.message || 'Xəta baş verdi', 'error');
+    }
   };
 
   const openEditAdminModal = (admin) => {
     setSelectedAdmin(admin);
     setNewAdmin({
-      name: admin.name,
+      first_name: admin.first_name,
+      last_name: admin.last_name,
       email: admin.email,
       phone: admin.phone,
-      role: admin.role,
+      role_type: admin.role_type,
       status: admin.status,
-      permissions: admin.permissions || [],
-      joinDate: admin.joinDate,
-      lastLogin: admin.lastLogin,
-      notes: admin.notes
+      country_id: admin.country_id?.toString() || '',
+      city_id: admin.city_id?.toString() || '',
+      role_ids: admin.roles?.map(role => role.id) || [],
+      password: ''
     });
+    setErrors({}); // Clear errors when opening modal
     setShowEditAdminModal(true);
   };
 
@@ -415,55 +331,99 @@ const Admin = () => {
   };
 
   // CRUD functions for Employees
-  const handleAddEmployee = () => {
-    const newId = Math.max(...employeesList.map(e => e.id)) + 1;
-    const employeeToAdd = {
+  const handleAddEmployee = async () => {
+    try {
+      setErrors({});
+      const employeeData = {
       ...newEmployee,
-      id: newId,
-      joinDate: newEmployee.joinDate || new Date().toISOString().split('T')[0]
+        role_type: 'employee',
+        profile_type: null
     };
-    setEmployeesList([...employeesList, employeeToAdd]);
+      
+      await createAdmin(employeeData).unwrap();
+      showToast('Əməkdaş uğurla əlavə edildi', 'success');
     setNewEmployee({
-      name: '',
+        first_name: '',
+        last_name: '',
       email: '',
       phone: '',
-      whatsapp: '',
-      role: 'Satış Məsləhətçisi',
-      status: 'Aktiv',
-      department: '',
-      joinDate: '',
-      salary: '',
-      notes: ''
+        role_type: 'employee',
+        status: 'active',
+        country_id: '',
+        city_id: '',
+        role_ids: [],
+        password: ''
     });
     setShowAddEmployeeModal(false);
+    } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        showToast('Zəhmət olmasa bütün xətaları düzəldin!', 'error');
+      } else {
+        showToast(error.data?.message || 'Xəta baş verdi', 'error');
+      }
+    }
   };
 
-  const handleEditEmployee = () => {
-    setEmployeesList(employeesList.map(employee => 
-      employee.id === selectedEmployee.id ? { ...selectedEmployee, ...newEmployee } : employee
-    ));
+  const handleEditEmployee = async () => {
+    try {
+      setErrors({});
+      const employeeData = {
+        first_name: newEmployee.first_name,
+        last_name: newEmployee.last_name,
+        email: newEmployee.email,
+        phone: newEmployee.phone,
+        status: newEmployee.status,
+        country_id: newEmployee.country_id,
+        city_id: newEmployee.city_id,
+        role_ids: newEmployee.role_ids,
+        role_type: 'employee',
+        profile_type: null
+      };
+      
+      // Only include password if it's provided and not empty
+      if (newEmployee.password && newEmployee.password.trim() !== '') {
+        employeeData.password = newEmployee.password;
+      }
+      
+      await updateAdmin({ id: selectedEmployee.id, ...employeeData }).unwrap();
+      showToast('Əməkdaş uğurla yeniləndi', 'success');
     setShowEditEmployeeModal(false);
+    } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        showToast('Zəhmət olmasa bütün xətaları düzəldin!', 'error');
+      } else {
+        showToast(error.data?.message || 'Xəta baş verdi', 'error');
+      }
+    }
   };
 
-  const handleDeleteEmployee = () => {
-    setEmployeesList(employeesList.filter(employee => employee.id !== selectedEmployee.id));
+  const handleDeleteEmployee = async () => {
+    try {
+      await deleteAdmin(selectedEmployee.id).unwrap();
+      showToast('Əməkdaş uğurla silindi', 'success');
     setShowDeleteEmployeeModal(false);
+    } catch (error) {
+      showToast(error.data?.message || 'Xəta baş verdi', 'error');
+    }
   };
 
   const openEditEmployeeModal = (employee) => {
     setSelectedEmployee(employee);
     setNewEmployee({
-      name: employee.name,
+      first_name: employee.first_name,
+      last_name: employee.last_name,
       email: employee.email,
       phone: employee.phone,
-      whatsapp: employee.whatsapp,
-      role: employee.role,
+      role_type: employee.role_type,
       status: employee.status,
-      department: employee.department || '',
-      joinDate: employee.joinDate,
-      salary: employee.salary || '',
-      notes: employee.notes || ''
+      country_id: employee.country_id?.toString() || '',
+      city_id: employee.city_id?.toString() || '',
+      role_ids: employee.roles?.map(role => role.id) || [],
+      password: ''
     });
+    setErrors({}); // Clear errors when opening modal
     setShowEditEmployeeModal(true);
   };
 
@@ -479,9 +439,21 @@ const Admin = () => {
 
   // Statistics
   const totalAdmins = admins.length;
-  const activeAdmins = admins.filter(a => a.status === 'Aktiv').length;
-  const totalEmployees = employeesList.length;
-  const activeEmployees = employeesList.filter(e => e.status === 'Aktiv').length;
+  const activeAdmins = admins.filter(a => a.status === 'active').length;
+  const totalEmployees = employees.length;
+  const activeEmployees = employees.filter(e => e.status === 'active').length;
+
+  // Loading state
+  if (adminsLoading) {
+    return (
+      <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Yüklənir...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
       <div className="p-6 bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 min-h-screen">
@@ -591,9 +563,9 @@ const Admin = () => {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">Bütün Statuslar</option>
-                <option value="Aktiv">Aktiv</option>
-                <option value="Gözləyir">Gözləyir</option>
-                <option value="Passiv">Passiv</option>
+                <option value="active">Aktiv</option>
+                <option value="deactive">Deaktiv</option>
+                <option value="passiv">Passiv</option>
               </select>
 
               <select
@@ -602,15 +574,42 @@ const Admin = () => {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">Bütün Rollar</option>
-                {activeTab === 'admins' 
-                  ? adminRoles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)
-                  : employeeRoles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)
-                }
+                {adminRoles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)}
               </select>
             </div>
             
             <button
-              onClick={() => activeTab === 'admins' ? setShowAddAdminModal(true) : setShowAddEmployeeModal(true)}
+              onClick={() => {
+                if (activeTab === 'admins') {
+                  setNewAdmin({
+                    first_name: '',
+                    last_name: '',
+                    email: '',
+                    phone: '',
+                    password: '',
+                    status: 'active',
+                    country_id: '',
+                    city_id: '',
+                    role_ids: []
+                  });
+                  setErrors({}); // Clear errors when opening modal
+                  setShowAddAdminModal(true);
+                } else {
+                  setNewEmployee({
+                    first_name: '',
+                    last_name: '',
+                    email: '',
+                    phone: '',
+                    password: '',
+                    status: 'active',
+                    country_id: '',
+                    city_id: '',
+                    role_ids: []
+                  });
+                  setErrors({}); // Clear errors when opening modal
+                  setShowAddEmployeeModal(true);
+                }
+              }}
               className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center"
             >
               <Plus className="w-5 h-5 mr-2" />
@@ -629,17 +628,17 @@ const Admin = () => {
                 <div key={admin.id} className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                   <div className="flex items-center space-x-4 mb-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white font-semibold">{getInitials(admin.name)}</span>
+                      <span className="text-white font-semibold">{getInitials(`${admin.first_name} ${admin.last_name}`)}</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800">{admin.name}</h3>
+                      <h3 className="font-semibold text-gray-800">{admin.first_name} {admin.last_name}</h3>
                       <p className="text-sm text-gray-600">{admin.email}</p>
                       <div className="flex items-center space-x-2 mt-1">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(admin.role)}`}>
-                          {admin.role}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(admin.roles?.[0]?.id)}`}>
+                          {typeof admin.roles?.[0]?.name === 'string' ? admin.roles[0].name : 'Admin'}
                         </span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(admin.status)}`}>
-                          {admin.status}
+                          {getStatusText(admin.status)}
                         </span>
                       </div>
                     </div>
@@ -652,11 +651,16 @@ const Admin = () => {
                     </div>
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
                       <Calendar className="w-4 h-4" />
-                      <span>Qoşulma: {admin.joinDate}</span>
+                      <span>Qoşulma: {new Date(admin.created_at).toLocaleDateString('az-AZ')}</span>
                     </div>
-                    {admin.lastLogin !== '-' && (
+                    {admin.country && (
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <span>🕒 Son giriş: {admin.lastLogin}</span>
+                        <span>🌍 {typeof admin.country.name === 'string' ? admin.country.name : 'N/A'}</span>
+                      </div>
+                    )}
+                    {admin.city && (
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <span>🏙️ {typeof admin.city.name === 'string' ? admin.city.name : 'N/A'}</span>
                       </div>
                     )}
                   </div>
@@ -693,17 +697,17 @@ const Admin = () => {
                 <div key={employee.id} className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                   <div className="flex items-center space-x-4 mb-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white font-semibold">{getInitials(employee.name)}</span>
+                      <span className="text-white font-semibold">{getInitials(`${employee.first_name} ${employee.last_name}`)}</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-800">{employee.name}</h3>
+                      <h3 className="font-semibold text-gray-800">{employee.first_name} {employee.last_name}</h3>
                       <p className="text-sm text-gray-600">{employee.email}</p>
                       <div className="flex items-center space-x-2 mt-1">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(employee.role)}`}>
-                          {employee.role}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(employee.roles?.[0]?.id)}`}>
+                          {typeof employee.roles?.[0]?.name === 'string' ? employee.roles[0].name : 'Əməkdaş'}
                         </span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(employee.status)}`}>
-                          {employee.status}
+                          {getStatusText(employee.status)}
                         </span>
                       </div>
                     </div>
@@ -715,12 +719,19 @@ const Admin = () => {
                       <span>{employee.phone}</span>
                     </div>
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <span>💬 {employee.whatsapp}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
                       <Calendar className="w-4 h-4" />
-                      <span>Qoşulma: {employee.joinDate}</span>
+                      <span>Qoşulma: {new Date(employee.created_at).toLocaleDateString('az-AZ')}</span>
                     </div>
+                    {employee.country && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <span>🌍 {typeof employee.country.name === 'string' ? employee.country.name : 'N/A'}</span>
+                    </div>
+                    )}
+                    {employee.city && (
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <span>🏙️ {typeof employee.city.name === 'string' ? employee.city.name : 'N/A'}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex space-x-3">
@@ -766,15 +777,13 @@ const Admin = () => {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={goToFirstPage}
-                  disabled={currentPage === 1}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-gray-400 hover:text-gray-600"
                 >
                   <ChevronsLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={goToPreviousPage}
-                  disabled={currentPage === 1}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-gray-400 hover:text-gray-600"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -783,7 +792,6 @@ const Admin = () => {
                   <button
                     key={index}
                     onClick={() => typeof page === 'number' && goToPage(page)}
-                    disabled={page === '...'}
                     className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                       page === currentPage
                         ? 'bg-blue-600 text-white'
@@ -798,15 +806,13 @@ const Admin = () => {
                 
                 <button
                   onClick={goToNextPage}
-                  disabled={currentPage === totalPages}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-gray-400 hover:text-gray-600"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={goToLastPage}
-                  disabled={currentPage === totalPages}
-                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-gray-400 hover:text-gray-600"
                 >
                   <ChevronsRight className="w-4 h-4" />
                 </button>
@@ -835,14 +841,31 @@ const Admin = () => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad Soyad *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad *</label>
                   <input
                     type="text"
-                    value={newAdmin.name}
-                    onChange={(e) => setNewAdmin({...newAdmin, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Admin adı"
+                    value={newAdmin.first_name}
+                    onChange={(e) => setNewAdmin({...newAdmin, first_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.first_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Ad"
                   />
+                  {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Soyad *</label>
+                  <input
+                    type="text"
+                    value={newAdmin.last_name}
+                    onChange={(e) => setNewAdmin({...newAdmin, last_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.last_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Soyad"
+                  />
+                  {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -851,9 +874,12 @@ const Admin = () => {
                     type="email"
                     value={newAdmin.email}
                     onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="email@example.com"
                   />
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email[0]}</p>}
                 </div>
                 
                 <div>
@@ -862,22 +888,26 @@ const Admin = () => {
                     type="tel"
                     value={newAdmin.phone}
                     onChange={(e) => setNewAdmin({...newAdmin, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="+994 50 123 45 67"
                   />
+                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-                  <select
-                    value={newAdmin.role}
-                    onChange={(e) => setNewAdmin({...newAdmin, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {adminRoles.map(role => (
-                      <option key={role} value={role}>{role}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şifrə *</label>
+                  <input
+                    type="password"
+                    value={newAdmin.password}
+                    onChange={(e) => setNewAdmin({...newAdmin, password: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Minimum 8 simvol"
+                  />
+                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
                 </div>
                 
                 <div>
@@ -885,63 +915,82 @@ const Admin = () => {
                   <select
                     value={newAdmin.status}
                     onChange={(e) => setNewAdmin({...newAdmin, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Gözləyir">Gözləyir</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="passiv">Passiv</option>
+                    <option value="deactive">Deaktiv</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qoşulma Tarixi</label>
-                  <input
-                    type="date"
-                    value={newAdmin.joinDate}
-                    onChange={(e) => setNewAdmin({...newAdmin, joinDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ölkə *</label>
+                  <select
+                    value={newAdmin.country_id}
+                    onChange={(e) => setNewAdmin({...newAdmin, country_id: e.target.value, city_id: ''})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.country_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Ölkə seçin</option>
+                    {countriesData?.data?.map(country => (
+                      <option key={country.id} value={country.id}>{country.name}</option>
+                    ))}
+                  </select>
+                  {errors.country_id && <p className="text-red-500 text-xs mt-1">{errors.country_id[0]}</p>}
                 </div>
                 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İcazələr</label>
-                  <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-3">
-                    {permissions.map((permission) => (
-                      <label key={permission.id} className="flex items-center space-x-2 py-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şəhər *</label>
+                  <select
+                    value={newAdmin.city_id}
+                    onChange={(e) => setNewAdmin({...newAdmin, city_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.city_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Şəhər seçin</option>
+                    {countriesData?.data?.find(country => country.id.toString() === newAdmin.country_id)?.cities?.map(city => (
+                      <option key={city.id} value={city.id}>{city.name}</option>
+                    ))}
+                  </select>
+                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rollar *</label>
+                  <div className={`max-h-32 overflow-y-auto border rounded-lg p-2 ${
+                    errors.role_ids ? 'border-red-500' : 'border-gray-300'
+                  }`}>
+                    {adminRoles.map((role) => (
+                      <label key={role.id} className="flex items-center space-x-2 py-1">
                         <input
                           type="checkbox"
-                          checked={newAdmin.permissions.includes(permission.id)}
+                          checked={newAdmin.role_ids.includes(role.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
                               setNewAdmin({
                                 ...newAdmin,
-                                permissions: [...newAdmin.permissions, permission.id]
+                                role_ids: [...newAdmin.role_ids, role.id]
                               });
                             } else {
                               setNewAdmin({
                                 ...newAdmin,
-                                permissions: newAdmin.permissions.filter(id => id !== permission.id)
+                                role_ids: newAdmin.role_ids.filter(id => id !== role.id)
                               });
                             }
                           }}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700">{permission.name}</span>
+                        <span className="text-sm text-gray-700">{role.name}</span>
                       </label>
                     ))}
                   </div>
+                  {errors.role_ids && <p className="text-red-500 text-xs mt-1">{errors.role_ids[0]}</p>}
                 </div>
                 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qeydlər</label>
-                  <textarea
-                    value={newAdmin.notes}
-                    onChange={(e) => setNewAdmin({...newAdmin, notes: e.target.value})}
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Admin haqqında əlavə məlumat"
-                  />
-                </div>
               </div>
             </div>
             
@@ -954,10 +1003,9 @@ const Admin = () => {
               </button>
               <button
                 onClick={handleAddAdmin}
-                disabled={!newAdmin.name || !newAdmin.email || !newAdmin.phone}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Əlavə Et
+                {isCreating ? 'Əlavə edilir...' : 'Əlavə Et'}
               </button>
             </div>
           </div>
@@ -981,14 +1029,31 @@ const Admin = () => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad Soyad *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad *</label>
                   <input
                     type="text"
-                    value={newAdmin.name}
-                    onChange={(e) => setNewAdmin({...newAdmin, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Admin adı"
+                    value={newAdmin.first_name}
+                    onChange={(e) => setNewAdmin({...newAdmin, first_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.first_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Ad"
                   />
+                  {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Soyad *</label>
+                  <input
+                    type="text"
+                    value={newAdmin.last_name}
+                    onChange={(e) => setNewAdmin({...newAdmin, last_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.last_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Soyad"
+                  />
+                  {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -997,7 +1062,9 @@ const Admin = () => {
                     type="email"
                     value={newAdmin.email}
                     onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="email@example.com"
                   />
                 </div>
@@ -1008,22 +1075,25 @@ const Admin = () => {
                     type="tel"
                     value={newAdmin.phone}
                     onChange={(e) => setNewAdmin({...newAdmin, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="+994 50 123 45 67"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-                  <select
-                    value={newAdmin.role}
-                    onChange={(e) => setNewAdmin({...newAdmin, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {adminRoles.map(role => (
-                      <option key={role} value={role}>{role}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şifrə</label>
+                  <input
+                    type="password"
+                    value={newAdmin.password}
+                    onChange={(e) => setNewAdmin({...newAdmin, password: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Yeni şifrə (boş buraxın dəyişməmək üçün)"
+                  />
+                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
                 </div>
                 
                 <div>
@@ -1031,52 +1101,83 @@ const Admin = () => {
                   <select
                     value={newAdmin.status}
                     onChange={(e) => setNewAdmin({...newAdmin, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Gözləyir">Gözləyir</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="deactive">Deaktiv</option>
+                    <option value="passiv">Passiv</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qoşulma Tarixi</label>
-                  <input
-                    type="date"
-                    value={newAdmin.joinDate}
-                    onChange={(e) => setNewAdmin({...newAdmin, joinDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ölkə *</label>
+                  <select
+                    value={newAdmin.country_id}
+                    onChange={(e) => setNewAdmin({...newAdmin, country_id: e.target.value, city_id: ''})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.country_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Ölkə seçin</option>
+                    {countriesData?.data?.map(country => (
+                      <option key={country.id} value={country.id}>{country.name}</option>
+                    ))}
+                  </select>
+                  {errors.country_id && <p className="text-red-500 text-xs mt-1">{errors.country_id[0]}</p>}
                 </div>
                 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">İcazələr</label>
-                  <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-3">
-                    {permissions.map((permission) => (
-                      <label key={permission.id} className="flex items-center space-x-2 py-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şəhər *</label>
+                  <select
+                    value={newAdmin.city_id}
+                    onChange={(e) => setNewAdmin({...newAdmin, city_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.city_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Şəhər seçin</option>
+                    {countriesData?.data?.find(country => country.id.toString() === newAdmin.country_id)?.cities?.map(city => (
+                      <option key={city.id} value={city.id}>{city.name}</option>
+                    ))}
+                  </select>
+                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rollar *</label>
+                  <div className={`max-h-32 overflow-y-auto border rounded-lg p-2 ${
+                    errors.role_ids ? 'border-red-500' : 'border-gray-300'
+                  }`}>
+                    {adminRoles.map((role) => (
+                      <label key={role.id} className="flex items-center space-x-2 py-1">
                         <input
                           type="checkbox"
-                          checked={newAdmin.permissions.includes(permission.id)}
+                          checked={newAdmin.role_ids.includes(role.id)}
                           onChange={(e) => {
                             if (e.target.checked) {
                               setNewAdmin({
                                 ...newAdmin,
-                                permissions: [...newAdmin.permissions, permission.id]
+                                role_ids: [...newAdmin.role_ids, role.id]
                               });
                             } else {
                               setNewAdmin({
                                 ...newAdmin,
-                                permissions: newAdmin.permissions.filter(id => id !== permission.id)
+                                role_ids: newAdmin.role_ids.filter(id => id !== role.id)
                               });
                             }
                           }}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700">{permission.name}</span>
+                        <span className="text-sm text-gray-700">{role.name}</span>
                       </label>
                     ))}
                   </div>
+                  {errors.role_ids && <p className="text-red-500 text-xs mt-1">{errors.role_ids[0]}</p>}
                 </div>
+                
+                
                 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Qeydlər</label>
@@ -1084,7 +1185,9 @@ const Admin = () => {
                     value={newAdmin.notes}
                     onChange={(e) => setNewAdmin({...newAdmin, notes: e.target.value})}
                     rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Admin haqqında əlavə məlumat"
                   />
                 </div>
@@ -1100,10 +1203,9 @@ const Admin = () => {
               </button>
               <button
                 onClick={handleEditAdmin}
-                disabled={!newAdmin.name || !newAdmin.email || !newAdmin.phone}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Yenilə
+                {isUpdating ? 'Yenilənir...' : 'Yenilə'}
               </button>
             </div>
           </div>
@@ -1140,7 +1242,7 @@ const Admin = () => {
                   onClick={handleDeleteAdmin}
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
-                  Sil
+                  {isDeleting ? 'Silinir...' : 'Sil'}
                 </button>
               </div>
             </div>
@@ -1163,7 +1265,11 @@ const Admin = () => {
             </div>
             
             <div className="flex-1 overflow-y-auto p-6">
-              {selectedAdmin && (
+              {adminDetailsLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+              ) : adminDetails?.data ? (
                 <div className="space-y-6">
                   {/* Admin Info */}
                   <div className="bg-gray-50 p-6 rounded-xl">
@@ -1174,60 +1280,35 @@ const Admin = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <p className="text-sm text-gray-600">Ad Soyad</p>
-                        <p className="font-medium text-gray-900">{selectedAdmin.name}</p>
+                        <p className="font-medium text-gray-900">{adminDetails.data.first_name} {adminDetails.data.last_name}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Admin ID</p>
-                        <p className="font-medium text-gray-900">#{selectedAdmin.id}</p>
+                        <p className="font-medium text-gray-900">#{adminDetails.data.id}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Email</p>
-                        <p className="font-medium text-gray-900">{selectedAdmin.email}</p>
+                        <p className="font-medium text-gray-900">{adminDetails.data.email}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Telefon</p>
-                        <p className="font-medium text-gray-900">{selectedAdmin.phone}</p>
+                        <p className="font-medium text-gray-900">{adminDetails.data.phone}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Rol</p>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(selectedAdmin.role)}`}>
-                          {selectedAdmin.role}
+                        <p className="text-sm text-gray-600">Rol Növü</p>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(adminDetails.data.role_type)}`}>
+                          {typeof adminDetails.data.role_type === 'string' ? adminDetails.data.role_type : 'Admin'}
                         </span>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Status</p>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedAdmin.status)}`}>
-                          {selectedAdmin.status}
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(adminDetails.data.status)}`}>
+                          {getStatusText(adminDetails.data.status)}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Permissions */}
-                  <div className="bg-gray-50 p-6 rounded-xl">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <Lock className="w-5 h-5 mr-2 text-green-600" />
-                      İcazələr
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {selectedAdmin.permissions && selectedAdmin.permissions.length > 0 ? (
-                        selectedAdmin.permissions.map((permissionId) => {
-                          const permission = permissions.find(p => p.id === permissionId);
-                          return permission ? (
-                            <div key={permissionId} className="bg-white p-4 rounded-lg border border-gray-200">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Lock className="w-4 h-4 text-green-600" />
-                                <span className="text-sm font-medium text-gray-900">{permission.name}</span>
-                              </div>
-                              <p className="text-xs text-gray-600">{permission.description}</p>
-                            </div>
-                          ) : null;
-                        })
-                      ) : (
-                        <p className="text-gray-500 italic">Hazırda heç bir icazə təyin edilməyib</p>
-                      )}
-                    </div>
-                  </div>
 
                   {/* Activity */}
                   <div className="bg-gray-50 p-6 rounded-xl">
@@ -1238,20 +1319,42 @@ const Admin = () => {
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-gray-600">Qoşulma Tarixi</p>
-                        <p className="font-medium text-gray-900">{selectedAdmin.joinDate}</p>
+                        <p className="font-medium text-gray-900">{new Date(adminDetails.data.created_at).toLocaleDateString('az-AZ')}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Son Giriş</p>
-                        <p className="font-medium text-gray-900">{selectedAdmin.lastLogin}</p>
+                        <p className="text-sm text-gray-600">Son Yenilənmə</p>
+                        <p className="font-medium text-gray-900">{new Date(adminDetails.data.updated_at).toLocaleDateString('az-AZ')}</p>
                       </div>
-                      {selectedAdmin.notes && (
+                      {adminDetails.data.country && (
                         <div>
-                          <p className="text-sm text-gray-600">Qeydlər</p>
-                          <p className="font-medium text-gray-900">{selectedAdmin.notes}</p>
+                          <p className="text-sm text-gray-600">Ölkə</p>
+                          <p className="font-medium text-gray-900">{adminDetails.data.country.name}</p>
+                        </div>
+                      )}
+                      {adminDetails.data.city && (
+                        <div>
+                          <p className="text-sm text-gray-600">Şəhər</p>
+                          <p className="font-medium text-gray-900">{adminDetails.data.city.name}</p>
+                    </div>
+                      )}
+                      {adminDetails.data.roles && adminDetails.data.roles.length > 0 && (
+                        <div>
+                          <p className="text-sm text-gray-600">Rollar</p>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {adminDetails.data.roles.map((role) => (
+                              <span key={role.id} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                {role.name}
+                              </span>
+                            ))}
+                  </div>
                         </div>
                       )}
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-gray-500">Admin məlumatları yüklənə bilmədi</p>
                 </div>
               )}
             </div>
@@ -1277,14 +1380,31 @@ const Admin = () => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad Soyad *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad *</label>
                   <input
                     type="text"
-                    value={newEmployee.name}
-                    onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Əməkdaş adı"
+                    value={newEmployee.first_name}
+                    onChange={(e) => setNewEmployee({...newEmployee, first_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.first_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Ad"
                   />
+                  {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Soyad *</label>
+                  <input
+                    type="text"
+                    value={newEmployee.last_name}
+                    onChange={(e) => setNewEmployee({...newEmployee, last_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.last_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Soyad"
+                  />
+                  {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -1293,9 +1413,12 @@ const Admin = () => {
                     type="email"
                     value={newEmployee.email}
                     onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="email@example.com"
                   />
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email[0]}</p>}
                 </div>
                 
                 <div>
@@ -1304,92 +1427,107 @@ const Admin = () => {
                     type="tel"
                     value={newEmployee.phone}
                     onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="+994 50 123 45 67"
                   />
+                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şifrə *</label>
                   <input
-                    type="text"
-                    value={newEmployee.whatsapp}
-                    onChange={(e) => setNewEmployee({...newEmployee, whatsapp: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="@username"
+                    type="password"
+                    value={newEmployee.password}
+                    onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Şifrə"
                   />
+                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-                  <select
-                    value={newEmployee.role}
-                    onChange={(e) => setNewEmployee({...newEmployee, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {employeeRoles.map(role => (
-                      <option key={role} value={role}>{role}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
                   <select
                     value={newEmployee.status}
                     onChange={(e) => setNewEmployee({...newEmployee, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Gözləyir">Gözləyir</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="deactive">Deaktiv</option>
+                    <option value="passiv">Passiv</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Departament</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ölkə *</label>
                   <select
-                    value={newEmployee.department}
-                    onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={newEmployee.country_id}
+                    onChange={(e) => setNewEmployee({...newEmployee, country_id: e.target.value, city_id: ''})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.country_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
-                    <option value="">Departament seçin</option>
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
+                    <option value="">Ölkə seçin</option>
+                    {countriesData?.data?.map(country => (
+                      <option key={country.id} value={country.id}>{country.name}</option>
                     ))}
                   </select>
+                  {errors.country_id && <p className="text-red-500 text-xs mt-1">{errors.country_id[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Maaş (₼)</label>
-                  <input
-                    type="number"
-                    value={newEmployee.salary}
-                    onChange={(e) => setNewEmployee({...newEmployee, salary: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qoşulma Tarixi</label>
-                  <input
-                    type="date"
-                    value={newEmployee.joinDate}
-                    onChange={(e) => setNewEmployee({...newEmployee, joinDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şəhər *</label>
+                  <select
+                    value={newEmployee.city_id}
+                    onChange={(e) => setNewEmployee({...newEmployee, city_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.city_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Şəhər seçin</option>
+                    {countriesData?.data?.find(country => country.id.toString() === newEmployee.country_id)?.cities?.map(city => (
+                      <option key={city.id} value={city.id}>{city.name}</option>
+                    ))}
+                  </select>
+                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qeydlər</label>
-                  <textarea
-                    value={newEmployee.notes}
-                    onChange={(e) => setNewEmployee({...newEmployee, notes: e.target.value})}
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Əməkdaş haqqında əlavə məlumat"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rollar *</label>
+                  <div className={`max-h-32 overflow-y-auto border rounded-lg p-2 ${
+                    errors.role_ids ? 'border-red-500' : 'border-gray-300'
+                  }`}>
+                    {adminRoles.map((role) => (
+                      <label key={role.id} className="flex items-center space-x-2 py-1">
+                  <input
+                          type="checkbox"
+                          checked={newEmployee.role_ids.includes(role.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewEmployee({
+                                ...newEmployee,
+                                role_ids: [...newEmployee.role_ids, role.id]
+                              });
+                            } else {
+                              setNewEmployee({
+                                ...newEmployee,
+                                role_ids: newEmployee.role_ids.filter(id => id !== role.id)
+                              });
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{role.name}</span>
+                      </label>
+                    ))}
+                </div>
+                  {errors.role_ids && <p className="text-red-500 text-xs mt-1">{errors.role_ids[0]}</p>}
                 </div>
               </div>
             </div>
@@ -1403,10 +1541,9 @@ const Admin = () => {
               </button>
               <button
                 onClick={handleAddEmployee}
-                disabled={!newEmployee.name || !newEmployee.email || !newEmployee.phone}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Əlavə Et
+                {isCreating ? 'Əlavə edilir...' : 'Əlavə Et'}
               </button>
             </div>
           </div>
@@ -1430,14 +1567,31 @@ const Admin = () => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad Soyad *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ad *</label>
                   <input
                     type="text"
-                    value={newEmployee.name}
-                    onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Əməkdaş adı"
+                    value={newEmployee.first_name}
+                    onChange={(e) => setNewEmployee({...newEmployee, first_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.first_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Ad"
                   />
+                  {errors.first_name && <p className="text-red-500 text-xs mt-1">{errors.first_name[0]}</p>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Soyad *</label>
+                  <input
+                    type="text"
+                    value={newEmployee.last_name}
+                    onChange={(e) => setNewEmployee({...newEmployee, last_name: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.last_name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Soyad"
+                  />
+                  {errors.last_name && <p className="text-red-500 text-xs mt-1">{errors.last_name[0]}</p>}
                 </div>
                 
                 <div>
@@ -1446,9 +1600,12 @@ const Admin = () => {
                     type="email"
                     value={newEmployee.email}
                     onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="email@example.com"
                   />
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email[0]}</p>}
                 </div>
                 
                 <div>
@@ -1457,92 +1614,107 @@ const Admin = () => {
                     type="tel"
                     value={newEmployee.phone}
                     onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="+994 50 123 45 67"
                   />
+                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şifrə *</label>
                   <input
-                    type="text"
-                    value={newEmployee.whatsapp}
-                    onChange={(e) => setNewEmployee({...newEmployee, whatsapp: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="@username"
+                    type="password"
+                    value={newEmployee.password}
+                    onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.password ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Şifrə"
                   />
+                  {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-                  <select
-                    value={newEmployee.role}
-                    onChange={(e) => setNewEmployee({...newEmployee, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {employeeRoles.map(role => (
-                      <option key={role} value={role}>{role}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
                   <select
                     value={newEmployee.status}
                     onChange={(e) => setNewEmployee({...newEmployee, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
-                    <option value="Aktiv">Aktiv</option>
-                    <option value="Gözləyir">Gözləyir</option>
-                    <option value="Passiv">Passiv</option>
+                    <option value="active">Aktiv</option>
+                    <option value="deactive">Deaktiv</option>
+                    <option value="passiv">Passiv</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Departament</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ölkə *</label>
                   <select
-                    value={newEmployee.department}
-                    onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={newEmployee.country_id}
+                    onChange={(e) => setNewEmployee({...newEmployee, country_id: e.target.value, city_id: ''})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.country_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
-                    <option value="">Departament seçin</option>
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
+                    <option value="">Ölkə seçin</option>
+                    {countriesData?.data?.map(country => (
+                      <option key={country.id} value={country.id}>{country.name}</option>
                     ))}
                   </select>
+                  {errors.country_id && <p className="text-red-500 text-xs mt-1">{errors.country_id[0]}</p>}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Maaş (₼)</label>
-                  <input
-                    type="number"
-                    value={newEmployee.salary}
-                    onChange={(e) => setNewEmployee({...newEmployee, salary: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qoşulma Tarixi</label>
-                  <input
-                    type="date"
-                    value={newEmployee.joinDate}
-                    onChange={(e) => setNewEmployee({...newEmployee, joinDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Şəhər *</label>
+                  <select
+                    value={newEmployee.city_id}
+                    onChange={(e) => setNewEmployee({...newEmployee, city_id: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.city_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Şəhər seçin</option>
+                    {countriesData?.data?.find(country => country.id.toString() === newEmployee.country_id)?.cities?.map(city => (
+                      <option key={city.id} value={city.id}>{city.name}</option>
+                    ))}
+                  </select>
+                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Qeydlər</label>
-                  <textarea
-                    value={newEmployee.notes}
-                    onChange={(e) => setNewEmployee({...newEmployee, notes: e.target.value})}
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Əməkdaş haqqında əlavə məlumat"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rollar *</label>
+                  <div className={`max-h-32 overflow-y-auto border rounded-lg p-2 ${
+                    errors.role_ids ? 'border-red-500' : 'border-gray-300'
+                  }`}>
+                    {adminRoles.map((role) => (
+                      <label key={role.id} className="flex items-center space-x-2 py-1">
+                  <input
+                          type="checkbox"
+                          checked={newEmployee.role_ids.includes(role.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewEmployee({
+                                ...newEmployee,
+                                role_ids: [...newEmployee.role_ids, role.id]
+                              });
+                            } else {
+                              setNewEmployee({
+                                ...newEmployee,
+                                role_ids: newEmployee.role_ids.filter(id => id !== role.id)
+                              });
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{role.name}</span>
+                      </label>
+                    ))}
+                </div>
+                  {errors.role_ids && <p className="text-red-500 text-xs mt-1">{errors.role_ids[0]}</p>}
                 </div>
               </div>
             </div>
@@ -1556,8 +1728,7 @@ const Admin = () => {
               </button>
               <button
                 onClick={handleEditEmployee}
-                disabled={!newEmployee.name || !newEmployee.email || !newEmployee.phone}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Yenilə
               </button>
@@ -1605,7 +1776,7 @@ const Admin = () => {
       )}
 
       {/* View Employee Modal */}
-      {showViewEmployeeModal && (
+      {showViewEmployeeModal && selectedEmployee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -1619,7 +1790,6 @@ const Admin = () => {
             </div>
             
             <div className="flex-1 overflow-y-auto p-6">
-              {selectedEmployee && (
                 <div className="space-y-6">
                   {/* Employee Info */}
                   <div className="bg-gray-50 p-6 rounded-xl">
@@ -1629,12 +1799,12 @@ const Admin = () => {
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <p className="text-sm text-gray-600">Ad Soyad</p>
-                        <p className="font-medium text-gray-900">{selectedEmployee.name}</p>
+                      <p className="text-sm text-gray-600">Ad</p>
+                      <p className="font-medium text-gray-900">{selectedEmployee.first_name}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Əməkdaş ID</p>
-                        <p className="font-medium text-gray-900">#{selectedEmployee.id}</p>
+                      <p className="text-sm text-gray-600">Soyad</p>
+                      <p className="font-medium text-gray-900">{selectedEmployee.last_name}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Email</p>
@@ -1645,60 +1815,94 @@ const Admin = () => {
                         <p className="font-medium text-gray-900">{selectedEmployee.phone}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">WhatsApp</p>
-                        <p className="font-medium text-gray-900">{selectedEmployee.whatsapp}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Rol</p>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(selectedEmployee.role)}`}>
-                          {selectedEmployee.role}
-                        </span>
+                      <p className="text-sm text-gray-600">Rol Növü</p>
+                      <p className="font-medium text-gray-900">{selectedEmployee.role_type}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Status</p>
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedEmployee.status)}`}>
-                          {selectedEmployee.status}
+                        {getStatusText(selectedEmployee.status)}
                         </span>
                       </div>
+                    {selectedEmployee.country && (
                       <div>
-                        <p className="text-sm text-gray-600">Departament</p>
-                        <p className="font-medium text-gray-900">{selectedEmployee.department || 'Təyin edilməyib'}</p>
+                        <p className="text-sm text-gray-600">Ölkə</p>
+                        <p className="font-medium text-gray-900">{typeof selectedEmployee.country.name === 'string' ? selectedEmployee.country.name : 'N/A'}</p>
                       </div>
+                    )}
+                    {selectedEmployee.city && (
+                      <div>
+                        <p className="text-sm text-gray-600">Şəhər</p>
+                        <p className="font-medium text-gray-900">{typeof selectedEmployee.city.name === 'string' ? selectedEmployee.city.name : 'N/A'}</p>
+                      </div>
+                    )}
                     </div>
                   </div>
 
-                  {/* Employment Details */}
+                {/* Roles */}
+                {selectedEmployee.roles && selectedEmployee.roles.length > 0 && (
+                  <div className="bg-gray-50 p-6 rounded-xl">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                      <Shield className="w-5 h-5 mr-2 text-purple-600" />
+                      Rollar
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedEmployee.roles.map((role) => (
+                        <span key={role.id} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                          {role.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dates */}
                   <div className="bg-gray-50 p-6 rounded-xl">
                     <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                       <Calendar className="w-5 h-5 mr-2 text-green-600" />
-                      İş Məlumatları
+                    Tarix Məlumatları
                     </h4>
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-gray-600">Qoşulma Tarixi</p>
-                        <p className="font-medium text-gray-900">{selectedEmployee.joinDate}</p>
+                      <p className="font-medium text-gray-900">{new Date(selectedEmployee.created_at).toLocaleDateString('az-AZ')}</p>
                       </div>
-                      {selectedEmployee.salary && (
                         <div>
-                          <p className="text-sm text-gray-600">Maaş</p>
-                          <p className="font-medium text-gray-900">{selectedEmployee.salary} ₼</p>
+                      <p className="text-sm text-gray-600">Son Yenilənmə</p>
+                      <p className="font-medium text-gray-900">{new Date(selectedEmployee.updated_at).toLocaleDateString('az-AZ')}</p>
                         </div>
-                      )}
-                      {selectedEmployee.notes && (
-                        <div>
-                          <p className="text-sm text-gray-600">Qeydlər</p>
-                          <p className="font-medium text-gray-900">{selectedEmployee.notes}</p>
                         </div>
-                      )}
                     </div>
                   </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
               )}
       </>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-[9999]">
+          <div className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
+            toast.type === 'success' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-red-500 text-white'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span>{toast.message}</span>
+            <button
+              onClick={() => setToast({ show: false, message: '', type: 'success' })}
+              className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

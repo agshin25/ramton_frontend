@@ -23,16 +23,23 @@ import {
   useUpdateZoneMutation,
   useDeleteZoneMutation,
 } from "../services/zonesApi";
+import { useGetCountriesQuery } from "../services/countriesApi";
+import { useGetCitiesQuery } from "../services/citiesApi";
 
 const Zones = () => {
   // API hooks
-  const { data: zonesData, isLoading, isError } = useGetZonesQuery();
+  const { data: zonesData, isLoading, isError, refetch } = useGetZonesQuery();
   const [createZone, { isLoading: isCreating }] = useCreateZoneMutation();
   const [updateZone, { isLoading: isUpdating }] = useUpdateZoneMutation();
   const [deleteZone, { isLoading: isDeleting }] = useDeleteZoneMutation();
+  const { data: countriesData } = useGetCountriesQuery();
+  const { data: citiesData } = useGetCitiesQuery();
 
-  // Extract zones from API response
+  // Extract data from API responses
   const zones = zonesData?.data || [];
+  const countries = countriesData?.data || [];
+  const cities = citiesData?.data || [];
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("Bütün");
   const [cityFilter, setCityFilter] = useState("Bütün");
@@ -48,17 +55,45 @@ const Zones = () => {
   const [newZone, setNewZone] = useState({
     name: "",
     avg_delivery_time: "",
-    courier_count: 0,
     status: "active",
     description: null,
-    country_id: 1,
-    city_id: 1,
+    country_id: null,
+    city_id: null,
   });
+
+  // Reset form function
+  const resetForm = () => {
+    setNewZone({
+      name: "",
+      avg_delivery_time: "",
+      status: "active",
+      description: null,
+      country_id: null,
+      city_id: null,
+    });
+    setErrors({});
+  };
+
+  // Filter cities by selected country
+  const getCitiesByCountry = (countryId) => {
+    if (!countryId) return [];
+    return cities.filter(city => city.country_id === countryId);
+  };
+
+  // Handle country change
+  const handleCountryChange = (countryId) => {
+    setNewZone({
+      ...newZone,
+      country_id: countryId,
+      city_id: null, // Reset city when country changes
+    });
+  };
 
   // Toast notification states
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
+  const [errors, setErrors] = useState({});
 
   // Toast notification function
   const showToastNotification = (message, type = "success") => {
@@ -66,6 +101,16 @@ const Zones = () => {
     setToastType(type);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Error message handler
+  const getErrorMessage = (error) => {
+    if (error?.data?.errors) {
+      // Handle validation errors - show unified message
+      return 'Zəhmət olmasa bütün xətaları düzəldin!';
+    }
+    
+    return error?.data?.message || 'Xəta baş verdi!';
   };
 
   // Filter zones
@@ -135,8 +180,10 @@ const Zones = () => {
     switch (status) {
       case "active":
         return "bg-green-100 text-green-800";
-      case "inactive":
+      case "deactive":
         return "bg-red-100 text-red-800";
+      case "passiv":
+        return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -163,36 +210,62 @@ const Zones = () => {
   // CRUD functions
   const handleAddZone = async () => {
     try {
+      setErrors({});
+      
+      // Basic validation
+      const validationErrors = {};
+      
+      if (!newZone.name.trim()) {
+        validationErrors.name = ["Zona adı tələb olunur"];
+      }
+      if (!newZone.avg_delivery_time) {
+        validationErrors.avg_delivery_time = ["Çatdırılma müddəti tələb olunur"];
+      }
+      if (!newZone.country_id) {
+        validationErrors.country_id = ["Ölkə tələb olunur"];
+      }
+      if (!newZone.city_id) {
+        validationErrors.city_id = ["Şəhər tələb olunur"];
+      }
+      
+      // If there are validation errors, show them and prevent submission
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        showToastNotification("Zəhmət olmasa bütün xətaları düzəldin!", "error");
+        return;
+      }
+      
       const zoneData = {
-        ...newZone,
-        description:
-          newZone.description && newZone.description.trim() === ""
-            ? null
-            : newZone.description,
+        name: newZone.name,
+        avg_delivery_time: newZone.avg_delivery_time,
+        status: newZone.status,
+        description: newZone.description && newZone.description.trim() !== "" ? newZone.description : null,
+        city_id: newZone.city_id, // Only send city_id, not country_id
       };
       await createZone(zoneData).unwrap();
       showToastNotification("Zona uğurla əlavə edildi!", "success");
       setShowAddModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
       // Reset form
-      setNewZone({
-        name: "",
-        avg_delivery_time: "",
-        courier_count: 0,
-        status: "active",
-        description: "",
-        country_id: 1,
-        city_id: 1,
-      });
+      resetForm();
     } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        // Show toaster notification for validation errors
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      } else {
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      }
       console.error("Zona əlavə edilərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Zona əlavə edilərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
     }
   };
 
   const handleEditZone = async () => {
     try {
+      setErrors({});
       // Only send changed fields
       const zoneData = {};
 
@@ -206,10 +279,6 @@ const Zones = () => {
         zoneData.avg_delivery_time = newZone.avg_delivery_time;
       }
 
-      // Check if courier_count has changed
-      if (newZone.courier_count !== selectedZone.courier_count) {
-        zoneData.courier_count = newZone.courier_count;
-      }
 
       // Check if status has changed
       if (newZone.status !== selectedZone.status) {
@@ -225,12 +294,7 @@ const Zones = () => {
         zoneData.description = newDescription;
       }
 
-      // Check if country_id has changed
-      if (newZone.country_id !== selectedZone.country_id) {
-        zoneData.country_id = newZone.country_id;
-      }
-
-      // Check if city_id has changed
+      // Check if city_id has changed (only send city_id, not country_id)
       if (newZone.city_id !== selectedZone.city_id) {
         zoneData.city_id = newZone.city_id;
       }
@@ -244,11 +308,19 @@ const Zones = () => {
       await updateZone({ id: selectedZone.id, ...zoneData }).unwrap();
       showToastNotification("Zona uğurla yeniləndi!", "success");
       setShowEditModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
+      if (error.data?.errors) {
+        setErrors(error.data.errors);
+        // Show toaster notification for validation errors
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      } else {
+        const errorMessage = getErrorMessage(error);
+        showToastNotification(errorMessage, 'error');
+      }
       console.error("Zona yenilənərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Zona yenilənərkən xəta baş verdi!";
-      showToastNotification(errorMessage, "error");
     }
   };
 
@@ -257,25 +329,31 @@ const Zones = () => {
       await deleteZone(selectedZone.id).unwrap();
       showToastNotification("Zona uğurla silindi!", "success");
       setShowDeleteModal(false);
+      // Manually refetch to ensure UI updates
+      refetch();
     } catch (error) {
-      console.error("Zona silinərkən xəta:", error);
-      const errorMessage =
-        error?.data?.message || "Zona silinərkən xəta baş verdi!";
+      const errorMessage = getErrorMessage(error);
       showToastNotification(errorMessage, "error");
+      console.error("Zona silinərkən xəta:", error);
     }
   };
 
   const openEditModal = (zone) => {
     setSelectedZone(zone);
+    
+    // Find the country_id from the city_id
+    const city = cities.find(c => c.id === zone.city_id);
+    const countryId = city ? city.country_id : null;
+    
     setNewZone({
       name: zone.name,
       avg_delivery_time: zone.avg_delivery_time,
-      courier_count: zone.courier_count,
       status: zone.status,
       description: zone.description || "",
-      country_id: zone.country_id,
+      country_id: countryId,
       city_id: zone.city_id,
     });
+    setErrors({});
     setShowEditModal(true);
   };
 
@@ -293,7 +371,7 @@ const Zones = () => {
   const totalZones = zones.length;
   const activeZones = zones.filter((zone) => zone.status === "active").length;
   const totalCouriers = zones.reduce(
-    (sum, zone) => sum + (zone.courier_count || 0),
+    (sum, zone) => sum + (zone.couriers_count || 0),
     0
   );
   const bakuZones = zones.filter((zone) => zone.city?.name === "Baku").length;
@@ -426,7 +504,8 @@ const Zones = () => {
               >
                 <option value="Bütün">Bütün Statuslar</option>
                 <option value="active">Aktiv</option>
-                <option value="inactive">Passiv</option>
+                <option value="deactive">Deaktiv</option>
+                <option value="passiv">Passiv</option>
               </select>
 
               <select
@@ -447,7 +526,10 @@ const Zones = () => {
               </select>
 
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-5 h-5 mr-2" />
@@ -500,9 +582,6 @@ const Zones = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {zone.city?.name || "N/A"}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {zone.country?.name || "N/A"}
                         </div>
                       </div>
                     </td>
@@ -649,9 +728,12 @@ const Zones = () => {
                     onChange={(e) =>
                       setNewZone({ ...newZone, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Zona adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
 
                 <div>
@@ -661,35 +743,22 @@ const Zones = () => {
                   <input
                     type="number"
                     step="0.1"
+                    min="0"
                     value={newZone.avg_delivery_time}
                     onChange={(e) =>
                       setNewZone({
                         ...newZone,
-                        avg_delivery_time: e.target.value,
+                        avg_delivery_time: parseFloat(e.target.value) || "",
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.avg_delivery_time ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="1.5"
                   />
+                  {errors.avg_delivery_time && <p className="text-red-500 text-xs mt-1">{errors.avg_delivery_time[0]}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Kuryer Sayı
-                  </label>
-                  <input
-                    type="number"
-                    value={newZone.courier_count}
-                    onChange={(e) =>
-                      setNewZone({
-                        ...newZone,
-                        courier_count: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    min="0"
-                  />
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -700,11 +769,59 @@ const Zones = () => {
                     onChange={(e) =>
                       setNewZone({ ...newZone, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
-                    <option value="inactive">Passiv</option>
+                    <option value="deactive">Deaktiv</option>
+                    <option value="passiv">Passiv</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ölkə *
+                  </label>
+                  <select
+                    value={newZone.country_id || ""}
+                    onChange={(e) => handleCountryChange(parseInt(e.target.value))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.country_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Ölkə seçin</option>
+                    {countries.map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.country_id && <p className="text-red-500 text-xs mt-1">{errors.country_id[0]}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Şəhər *
+                  </label>
+                  <select
+                    value={newZone.city_id || ""}
+                    onChange={(e) =>
+                      setNewZone({ ...newZone, city_id: parseInt(e.target.value) })
+                    }
+                    disabled={!newZone.country_id}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.city_id ? 'border-red-500' : 'border-gray-300'
+                    } ${!newZone.country_id ? 'bg-gray-100' : ''}`}
+                  >
+                    <option value="">Şəhər seçin</option>
+                    {getCitiesByCountry(newZone.country_id).map((city) => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
                 </div>
 
                 <div>
@@ -716,10 +833,13 @@ const Zones = () => {
                     onChange={(e) =>
                       setNewZone({ ...newZone, description: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Zona haqqında qısa təsvir"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
               </div>
             </div>
@@ -733,8 +853,7 @@ const Zones = () => {
               </button>
               <button
                 onClick={handleAddZone}
-                disabled={!newZone.name || isCreating}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {isCreating ? "Əlavə edilir..." : "Əlavə Et"}
               </button>
@@ -771,9 +890,12 @@ const Zones = () => {
                     onChange={(e) =>
                       setNewZone({ ...newZone, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="Zona adını daxil edin"
                   />
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                 </div>
 
                 <div>
@@ -783,35 +905,22 @@ const Zones = () => {
                   <input
                     type="number"
                     step="0.1"
+                    min="0"
                     value={newZone.avg_delivery_time}
                     onChange={(e) =>
                       setNewZone({
                         ...newZone,
-                        avg_delivery_time: e.target.value,
+                        avg_delivery_time: parseFloat(e.target.value) || "",
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.avg_delivery_time ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     placeholder="1.5"
                   />
+                  {errors.avg_delivery_time && <p className="text-red-500 text-xs mt-1">{errors.avg_delivery_time[0]}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Kuryer Sayı
-                  </label>
-                  <input
-                    type="number"
-                    value={newZone.courier_count}
-                    onChange={(e) =>
-                      setNewZone({
-                        ...newZone,
-                        courier_count: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    min="0"
-                  />
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -822,11 +931,59 @@ const Zones = () => {
                     onChange={(e) =>
                       setNewZone({ ...newZone, status: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.status ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   >
                     <option value="active">Aktiv</option>
-                    <option value="inactive">Passiv</option>
+                    <option value="deactive">Deaktiv</option>
+                    <option value="passiv">Passiv</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ölkə *
+                  </label>
+                  <select
+                    value={newZone.country_id || ""}
+                    onChange={(e) => handleCountryChange(parseInt(e.target.value))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.country_id ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Ölkə seçin</option>
+                    {countries.map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.country_id && <p className="text-red-500 text-xs mt-1">{errors.country_id[0]}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Şəhər *
+                  </label>
+                  <select
+                    value={newZone.city_id || ""}
+                    onChange={(e) =>
+                      setNewZone({ ...newZone, city_id: parseInt(e.target.value) })
+                    }
+                    disabled={!newZone.country_id}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.city_id ? 'border-red-500' : 'border-gray-300'
+                    } ${!newZone.country_id ? 'bg-gray-100' : ''}`}
+                  >
+                    <option value="">Şəhər seçin</option>
+                    {getCitiesByCountry(newZone.country_id).map((city) => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.city_id && <p className="text-red-500 text-xs mt-1">{errors.city_id[0]}</p>}
                 </div>
 
                 <div>
@@ -842,10 +999,13 @@ const Zones = () => {
                           e.target.value.length > 0 ? e.target.value : null,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      errors.description ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     rows="3"
                     placeholder="Zona haqqında qısa təsvir"
                   />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description[0]}</p>}
                 </div>
               </div>
             </div>
@@ -859,8 +1019,7 @@ const Zones = () => {
               </button>
               <button
                 onClick={handleEditZone}
-                disabled={!newZone.name || isUpdating}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 {isUpdating ? "Yenilənir..." : "Yenilə"}
               </button>
@@ -953,13 +1112,7 @@ const Zones = () => {
                     <div>
                       <p className="text-sm text-gray-600">Şəhər</p>
                       <p className="font-medium text-gray-900">
-                        {selectedZone?.city}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Rayon</p>
-                      <p className="font-medium text-gray-900">
-                        {selectedZone?.district}
+                        {selectedZone?.city?.name || "N/A"}
                       </p>
                     </div>
                     <div>
@@ -986,16 +1139,16 @@ const Zones = () => {
                       <p className="text-sm text-gray-600">Çatdırılma Vaxtı</p>
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full ${getDeliveryTimeColor(
-                          selectedZone?.deliveryTime
+                          selectedZone?.avg_delivery_time
                         )}`}
                       >
-                        {selectedZone?.deliveryTime}
+                        {formatDeliveryTime(selectedZone?.avg_delivery_time)}
                       </span>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Kuryer Sayı</p>
                       <p className="font-medium text-gray-900">
-                        {selectedZone?.courierCount} kuryer
+                        {selectedZone?.couriers_count || 0} kuryer
                       </p>
                     </div>
                   </div>
@@ -1016,7 +1169,7 @@ const Zones = () => {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-4 right-4 z-[9999]">
           <div
             className={`flex items-center space-x-2 px-6 py-3 rounded-xl shadow-lg ${
               toastType === "success"
@@ -1030,6 +1183,12 @@ const Zones = () => {
               <AlertTriangle className="w-5 h-5" />
             )}
             <span>{toastMessage}</span>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-2 hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
